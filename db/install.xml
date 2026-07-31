@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="payment/gateway/paddle/db" VERSION="2026022500" COMMENT="XMLDB file for paygw_paddle"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="../../../../lib/xmldb/xmldb.xsd">
+  <TABLES>
+    <TABLE NAME="paygw_paddle_transactions" COMMENT="Stores Paddle transaction records for payment tracking.">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="component" TYPE="char" LENGTH="100" NOTNULL="true" COMMENT="Moodle payment component (e.g. enrol_fee)."/>
+        <FIELD NAME="paymentarea" TYPE="char" LENGTH="50" NOTNULL="true" COMMENT="Moodle payment area (e.g. fee)."/>
+        <FIELD NAME="itemid" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="Moodle item ID (e.g. enrol instance ID)."/>
+        <FIELD NAME="paddle_transaction_id" TYPE="char" LENGTH="100" NOTNULL="true" COMMENT="Paddle transaction ID (txn_...)."/>
+        <FIELD NAME="paddle_customer_id" TYPE="char" LENGTH="100" NOTNULL="false" COMMENT="Paddle customer ID (ctm_...)."/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="Moodle user ID."/>
+        <FIELD NAME="amount" TYPE="number" LENGTH="10" DECIMALS="2" NOTNULL="true" DEFAULT="0" COMMENT="Payment amount."/>
+        <FIELD NAME="currency" TYPE="char" LENGTH="3" NOTNULL="true" DEFAULT="USD" COMMENT="ISO 4217 currency code."/>
+        <FIELD NAME="tax" TYPE="number" LENGTH="10" DECIMALS="2" NOTNULL="true" DEFAULT="0" COMMENT="Tax amount calculated by Paddle."/>
+        <FIELD NAME="status" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="pending" COMMENT="Transaction status: pending, completed, failed, refunded, chargeback."/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="idx_paddle_txn_id" UNIQUE="true" FIELDS="paddle_transaction_id"/>
+        <INDEX NAME="idx_userid" UNIQUE="false" FIELDS="userid"/>
+        <INDEX NAME="idx_status" UNIQUE="false" FIELDS="status"/>
+        <INDEX NAME="idx_component_area_item" UNIQUE="false" FIELDS="component, paymentarea, itemid"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="paygw_paddle_events" COMMENT="Idempotency store and audit trail for Paddle webhook events.">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="paddle_event_id" TYPE="char" LENGTH="100" NOTNULL="true" COMMENT="Paddle event ID (evt_...)."/>
+        <FIELD NAME="paddle_transaction_id" TYPE="char" LENGTH="100" NOTNULL="false" COMMENT="Related Paddle transaction ID."/>
+        <FIELD NAME="event_type" TYPE="char" LENGTH="100" NOTNULL="true" COMMENT="Paddle event type (e.g. transaction.completed)."/>
+        <FIELD NAME="processed" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" COMMENT="1 = processed, 0 = pending."/>
+        <FIELD NAME="result" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="pending" COMMENT="Processing result: pending, success, skipped, error."/>
+        <FIELD NAME="error_message" TYPE="text" NOTNULL="false" COMMENT="Error details if processing failed."/>
+        <FIELD NAME="raw_payload" TYPE="text" NOTNULL="false" COMMENT="Full webhook JSON payload for audit."/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="idx_paddle_event_id" UNIQUE="true" FIELDS="paddle_event_id"/>
+        <INDEX NAME="idx_paddle_event_txn" UNIQUE="false" FIELDS="paddle_transaction_id"/>
+        <INDEX NAME="idx_processed" UNIQUE="false" FIELDS="processed"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="paygw_paddle_prices" COMMENT="Maps Moodle courses to Paddle price IDs for per-course pricing.">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="Moodle course ID."/>
+        <FIELD NAME="paddle_price_id" TYPE="char" LENGTH="100" NOTNULL="true" COMMENT="Paddle price ID (pri_...)."/>
+        <FIELD NAME="amount" TYPE="number" LENGTH="10" DECIMALS="2" NOTNULL="true" DEFAULT="0" COMMENT="Display amount (informational)."/>
+        <FIELD NAME="currency" TYPE="char" LENGTH="3" NOTNULL="true" DEFAULT="USD" COMMENT="Display currency."/>
+        <FIELD NAME="description" TYPE="char" LENGTH="255" NOTNULL="false" COMMENT="Human-readable description."/>
+        <FIELD NAME="active" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1" COMMENT="1 = active, 0 = disabled."/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="idx_courseid" UNIQUE="false" FIELDS="courseid"/>
+        <INDEX NAME="idx_courseid_active" UNIQUE="false" FIELDS="courseid, active"/>
+      </INDEXES>
+    </TABLE>
+  </TABLES>
+</XMLDB>
