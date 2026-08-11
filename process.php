@@ -82,7 +82,7 @@ if ($enrolled) {
         html_writer::link($refreshurl, get_string('refreshstatus', 'paygw_paddle'),
             ['class' => 'btn btn-secondary']));
 
-    $PAGE->requires->js_init_code("setTimeout(function(){ window.location.reload(); }, 5000);");
+    $PAGE->requires->js_init_code("setTimeout(function (){ window.location.reload(); }, 5000);");
 }
 
 echo $OUTPUT->footer();

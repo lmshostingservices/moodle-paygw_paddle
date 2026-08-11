@@ -30,7 +30,6 @@ namespace paygw_paddle;
 defined('MOODLE_INTERNAL') || die();
 
 class paddle_helper {
-
     /** @var string Paddle API key (server-side). */
     private $apikey;
 

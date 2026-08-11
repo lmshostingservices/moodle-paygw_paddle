@@ -27,7 +27,6 @@ namespace paygw_paddle;
 defined('MOODLE_INTERNAL') || die();
 
 class gateway extends \core_payment\gateway {
-
     /**
      * Returns the list of currencies supported by the Paddle gateway.
      *

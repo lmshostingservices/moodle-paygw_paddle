@@ -21,7 +21,7 @@
  * Paddle.js v2 is loaded via a direct <script> tag (NOT through Moodle's AMD/RequireJS
  * system) to avoid two critical bugs:
  *
- *  1. AMD CONFLICT: $PAGE->requires->js_init_code() wraps code in require([],function(){...}).
+ *  1. AMD CONFLICT: $PAGE->requires->js_init_code() wraps code in require([],function (){...}).
  *     When Paddle.js is then loaded dynamically inside that wrapper, Paddle.js calls AMD's
  *     define() internally. RequireJS is already active and throws "Mismatched anonymous
  *     define() module", preventing Paddle from setting its global — causing "Paddle is not
@@ -33,7 +33,7 @@
  *
  * v1.0.18 extends the fix further: even with a plain <script> tag, Moodle's require.min.js
  * (already loaded in $OUTPUT->header()) intercepts the define() call that Paddle.js makes
- * via its UMD wrapper and throws "Mismatched anonymous define() module: function(){...}".
+ * via its UMD wrapper and throws "Mismatched anonymous define() module: function (){...}".
  * This prevents Paddle.js reaching the window.Paddle = Paddle assignment, so "Paddle is
  * not defined" still fires. Fix: null out window.define and window.require in a preceding
  * inline <script> block so Paddle.js's UMD wrapper sees no AMD loader and falls through to
@@ -47,6 +47,7 @@
 use core_payment\helper;
 
 require_once(__DIR__ . '/../../../config.php');
+require_login();
 
 $component = optional_param('component', '', PARAM_ALPHANUMEXT);
 $paymentarea = optional_param('paymentarea', '', PARAM_ALPHANUMEXT);
@@ -181,7 +182,7 @@ echo '<script>window.define=window.__pdef;window.require=window.__preq;delete wi
 // by Paddle.js v2). This is the only way to skip Paddle's first form (email/country/
 // postcode) and ensure full name, address, and city appear on the generated invoice.
 $js = <<<JS
-(function(){
+(function (){
   var txnid = {$txnidjs};
   var processUrl = {$processjs};
   var env = {$envjs};
@@ -203,7 +204,7 @@ $js = <<<JS
     }
     Paddle.Initialize({
       token: {$tokenjs},
-      eventCallback: function(event) {
+      eventCallback: function (event) {
         try {
           if (!processUrl) { return; }
           var name = event && (event.name || event.type);

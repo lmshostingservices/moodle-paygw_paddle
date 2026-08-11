@@ -61,7 +61,7 @@ function xmldb_paygw_paddle_upgrade($oldversion) {
 
     // v1.0.17: BUG FIX — checkout.php AMD conflict + S3 KeyTooLongError.
     //   Root cause: checkout.php used $PAGE->requires->js_init_code($js) to inject the
-    //   Paddle init code. js_init_code wraps code in require([],function(){...}) — Moodle's
+    //   Paddle init code. js_init_code wraps code in require([],function (){...}) — Moodle's
     //   AMD system. Inside the wrapper, a loadScript() call dynamically appended paddle.js
     //   to the <head>. When paddle.js loaded it called AMD's define() internally. RequireJS
     //   was already active and threw "Mismatched anonymous define() module", preventing
