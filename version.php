@@ -84,7 +84,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'paygw_paddle';
-$plugin->version   = 2026072200634;
+$plugin->version   = 2026072200;
 $plugin->requires  = 2022041900; // Moodle 4.0.
 $plugin->maturity  = MATURITY_STABLE;
 $plugin->release   = '1.0.32'; // SAVEPOINT-BUMP v1.0.29: no-op savepoint marker for clean upgrade path. No DB schema changes.; // FIX-REPORTS-BR-TAG (v1.0.28): reports.php line 151 — html_writer::tag('br') replaced with html_writer::empty_tag('br'). Moodle's html_writer::tag() requires at least 2 args; using it with 1 arg caused "Too few arguments" fatal error on the Transactions report page. No DB changes. Savepoint 2026052900628.
