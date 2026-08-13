@@ -1,9 +1,9 @@
 {
   "component": "paygw_paddle",
-  "version": "1.0.32",
-  "numeric_version": "2026072200",
-  "build_id": "6fb4606669439f5a",
-  "build_timestamp": "2026-08-11T00:00:00.000Z",
+  "version": "1.0.26",
+  "numeric_version": "2026050800626",
+  "build_id": "f4fc536870eea43b",
+  "build_timestamp": "2026-05-08T08:17:54.570Z",
   "folder": "paygw_paddle",
-  "verification": "10digit-migration-1.0.32"
+  "verification": "36807de7b20d7011"
 }
