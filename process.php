@@ -15,74 +15,137 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Post-checkout processing page.
+ * Return page shown after the Paddle checkout closes.
  *
- * This is the return URL after a successful Paddle checkout.
- * The webhook is the true source of truth for payment confirmation.
- * This page shows a success/pending message to the user.
+ * The webhook, not this page, confirms the payment. While Paddle's notification
+ * is still in flight the page re-checks a fixed number of times and then stops,
+ * so a misconfigured webhook cannot leave a payer reloading indefinitely.
  *
  * @package    paygw_paddle
  * @copyright  2026 AI Grader
+ * @author     AI Grader
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 require_once(__DIR__ . '/../../../config.php');
-require_once($CFG->dirroot . '/course/lib.php');
 
 require_login();
+
+// Access control: require_login() only, for the same reason as pay.php -- this
+// is the page a payer lands on after checkout. It deliberately does not use a
+// capability check; instead the confirmation lookups below are scoped to
+// $USER->id, so one user can never read another user's payment status.
+
+/** @var int How many times the page re-checks before giving up. */
+const PAYGW_PADDLE_MAX_POLL_ATTEMPTS = 12;
+
+/** @var int How long to wait between checks, in milliseconds. */
+const PAYGW_PADDLE_POLL_DELAY_MS = 5000;
 
 $component = required_param('component', PARAM_ALPHANUMEXT);
 $paymentarea = required_param('paymentarea', PARAM_ALPHANUMEXT);
 $itemid = required_param('itemid', PARAM_INT);
-$transactionid = optional_param('transaction_id', '', PARAM_TEXT);
+$transactionid = optional_param('transaction_id', '', PARAM_ALPHANUMEXT);
+$attempt = optional_param('attempt', 0, PARAM_INT);
 
-$PAGE->set_url(new moodle_url('/payment/gateway/paddle/process.php', [
+$urlparams = [
     'component' => $component,
     'paymentarea' => $paymentarea,
     'itemid' => $itemid,
-]));
+];
+if ($transactionid !== '') {
+    $urlparams['transaction_id'] = $transactionid;
+}
+
+$PAGE->set_url(new moodle_url('/payment/gateway/paddle/process.php', $urlparams));
 $PAGE->set_context(context_system::instance());
 $PAGE->set_pagelayout('standard');
 $PAGE->set_title(get_string('paymentprocessing', 'paygw_paddle'));
 $PAGE->set_heading(get_string('paymentprocessing', 'paygw_paddle'));
 
-echo $OUTPUT->header();
-
-// Check if webhook already processed the payment.
-$enrolled = false;
-if (!empty($transactionid)) {
-    $txnrec = $DB->get_record('paygw_paddle_transactions', [
-        'paddle_transaction_id' => $transactionid,
-    ]);
-    if ($txnrec && $txnrec->status === 'completed') {
-        $enrolled = true;
-    }
+// The payment is confirmed once the webhook has marked the transaction complete
+// and Moodle has a matching payment record for this learner.
+$confirmed = false;
+if ($transactionid !== '') {
+    $confirmed = $DB->record_exists(
+        'paygw_paddle_transactions',
+        [
+            'paddle_transaction_id' => $transactionid,
+            'userid' => $USER->id,
+            'status' => 'completed',
+        ]
+    );
+}
+if (!$confirmed) {
+    $confirmed = $DB->record_exists(
+        'payments',
+        [
+            'component' => $component,
+            'paymentarea' => $paymentarea,
+            'itemid' => $itemid,
+            'userid' => $USER->id,
+            'gateway' => 'paddle',
+        ]
+    );
 }
 
-if ($enrolled) {
-    echo $OUTPUT->notification(get_string('paymentsuccess', 'paygw_paddle'), 'notifysuccess');
+echo $OUTPUT->header();
 
-    // Try to redirect to the course.
+if ($confirmed) {
+    echo $OUTPUT->notification(
+        get_string('paymentsuccess', 'paygw_paddle'),
+        \core\output\notification::NOTIFY_SUCCESS
+    );
+
     if ($component === 'enrol_fee' && $paymentarea === 'fee') {
-        $enrolinstance = $DB->get_record('enrol', ['id' => $itemid]);
+        $enrolinstance = $DB->get_record('enrol', ['id' => $itemid], 'id, courseid');
         if ($enrolinstance) {
             $courseurl = new moodle_url('/course/view.php', ['id' => $enrolinstance->courseid]);
-            echo html_writer::tag('p',
-                html_writer::link($courseurl, get_string('gotocourse', 'paygw_paddle'),
-                    ['class' => 'btn btn-primary']));
+            echo html_writer::div(
+                html_writer::link(
+                    $courseurl,
+                    get_string('gotocourse', 'paygw_paddle'),
+                    ['class' => 'btn btn-primary']
+                ),
+                'mt-3'
+            );
         }
     }
-} else {
-    echo $OUTPUT->notification(get_string('paymentpending', 'paygw_paddle'), 'notifyinfo');
+} else if ($attempt < PAYGW_PADDLE_MAX_POLL_ATTEMPTS) {
+    echo $OUTPUT->notification(
+        get_string('paymentpending', 'paygw_paddle'),
+        \core\output\notification::NOTIFY_INFO
+    );
     echo html_writer::tag('p', get_string('paymentpendingdetail', 'paygw_paddle'));
 
-    // Auto-refresh after a few seconds.
-    $refreshurl = $PAGE->url->out(false) . '&transaction_id=' . urlencode($transactionid);
-    echo html_writer::tag('p',
-        html_writer::link($refreshurl, get_string('refreshstatus', 'paygw_paddle'),
-            ['class' => 'btn btn-secondary']));
+    $nexturl = new moodle_url(
+        '/payment/gateway/paddle/process.php',
+        $urlparams + ['attempt' => $attempt + 1]
+    );
 
-    $PAGE->requires->js_init_code("setTimeout(function (){ window.location.reload(); }, 5000);");
+    $PAGE->requires->js_call_amd(
+        'paygw_paddle/poll_status',
+        'init',
+        [
+            $nexturl->out(false),
+            PAYGW_PADDLE_POLL_DELAY_MS,
+        ]
+    );
+} else {
+    echo $OUTPUT->notification(
+        get_string('paymenttakinglonger', 'paygw_paddle'),
+        \core\output\notification::NOTIFY_WARNING
+    );
+
+    $retryurl = new moodle_url('/payment/gateway/paddle/process.php', $urlparams);
+    echo html_writer::div(
+        html_writer::link(
+            $retryurl,
+            get_string('refreshstatus', 'paygw_paddle'),
+            ['class' => 'btn btn-secondary']
+        ),
+        'mt-3'
+    );
 }
 
 echo $OUTPUT->footer();

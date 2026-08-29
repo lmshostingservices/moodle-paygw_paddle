@@ -15,21 +15,39 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Settings for the Paddle payment gateway plugin.
+ * Admin tree entries for the Paddle payment gateway plugin.
  *
- * Payment gateway plugins configure per-account settings via
- * add_configuration_to_gateway_form() in the gateway class.
+ * Credentials live on each payment account, configured through
+ * gateway::add_configuration_to_gateway_form(), so this plugin adds no
+ * site-wide settings of its own. Setting $settings to null tells Moodle core
+ * not to render an empty settings page for it.
  *
- * Moodle core (paygw plugininfo) automatically creates and registers
- * the admin settings page. Setting $settings = null tells Moodle we
- * have no additional standalone settings to add, preventing the
- * "Duplicate admin page name" error.
+ * The two management pages are registered here so administrators can reach
+ * them from Site administration > Plugins > Payment gateways rather than by
+ * typing a URL.
  *
  * @package    paygw_paddle
  * @copyright  2026 AI Grader
+ * @author     AI Grader
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
+
+$reportspage = new admin_externalpage(
+    'paygw_paddle_reports',
+    get_string('reports', 'paygw_paddle'),
+    new moodle_url('/payment/gateway/paddle/admin/reports.php'),
+    'paygw/paddle:viewreports'
+);
+$ADMIN->add('paymentgateways', $reportspage);
+
+$pricemappage = new admin_externalpage(
+    'paygw_paddle_pricemap',
+    get_string('pricemap', 'paygw_paddle'),
+    new moodle_url('/payment/gateway/paddle/admin/pricemap.php'),
+    'paygw/paddle:manage'
+);
+$ADMIN->add('paymentgateways', $pricemappage);
 
 $settings = null;

@@ -19,6 +19,7 @@
  *
  * @package    paygw_paddle
  * @copyright  2026 AI Grader
+ * @author     AI Grader
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 

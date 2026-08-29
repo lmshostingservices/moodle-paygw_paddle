@@ -15,114 +15,273 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Admin page: Transaction reports and webhook event log.
+ * Paddle transaction and webhook event reports.
  *
  * @package    paygw_paddle
  * @copyright  2026 AI Grader
+ * @author     AI Grader
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 require_once(__DIR__ . '/../../../../config.php');
 require_once($CFG->libdir . '/adminlib.php');
 
-require_login();
-$systemcontext = context_system::instance();
-require_capability('moodle/site:config', $systemcontext);
-$PAGE->set_url(new moodle_url('/payment/gateway/paddle/admin/reports.php'));
-$PAGE->set_context($systemcontext);
-$PAGE->set_pagelayout('admin');
-$PAGE->set_title(get_string('reports', 'paygw_paddle'));
-$PAGE->set_heading(get_string('reports', 'paygw_paddle'));
-
 $page = optional_param('page', 0, PARAM_INT);
-$perpage = 50;
 $search = optional_param('search', '', PARAM_TEXT);
 $statusfilter = optional_param('status', '', PARAM_ALPHA);
 $tab = optional_param('tab', 'transactions', PARAM_ALPHA);
-$format = optional_param('format', '', PARAM_ALPHA);
+$download = optional_param('download', '', PARAM_ALPHA);
 
-echo $OUTPUT->header();
-echo $OUTPUT->heading(get_string('reports', 'paygw_paddle'));
+admin_externalpage_setup('paygw_paddle_reports');
 
-// Tab navigation.
-$tabs = [];
-$tabs[] = new tabobject('transactions', new moodle_url('/payment/gateway/paddle/admin/reports.php', ['tab' => 'transactions']), 'Transactions');
-$tabs[] = new tabobject('events', new moodle_url('/payment/gateway/paddle/admin/reports.php', ['tab' => 'events']), 'Webhook Events');
-echo $OUTPUT->tabtree($tabs, $tab);
+$perpage = 50;
+$baseurl = new moodle_url('/payment/gateway/paddle/admin/reports.php');
 
-if ($tab === 'transactions') {
-    // Build query.
-    $where = '1=1';
+/**
+ * Build the WHERE clause and parameters for the transaction report.
+ *
+ * @param string $search Free text to match against transaction id or payer.
+ * @param string $statusfilter A transaction status to restrict to, or ''.
+ * @return array [string $where, array $params]
+ */
+function paygw_paddle_transaction_filter(string $search, string $statusfilter): array {
+    global $DB;
+
+    $where = '1 = 1';
     $params = [];
 
-    if (!empty($search)) {
-        $where .= ' AND (t.paddle_transaction_id LIKE :search1 OR u.email LIKE :search2 OR u.firstname LIKE :search3 OR u.lastname LIKE :search4)';
-        $params['search1'] = "%{$search}%";
-        $params['search2'] = "%{$search}%";
-        $params['search3'] = "%{$search}%";
-        $params['search4'] = "%{$search}%";
+    if ($search !== '') {
+        $like = [];
+        $fields = ['t.paddle_transaction_id', 'u.email', 'u.firstname', 'u.lastname'];
+        foreach ($fields as $index => $field) {
+            $name = 'search' . $index;
+            $like[] = $DB->sql_like($field, ':' . $name, false);
+            $params[$name] = '%' . $DB->sql_like_escape($search) . '%';
+        }
+        $where .= ' AND (' . implode(' OR ', $like) . ')';
     }
 
-    if (!empty($statusfilter)) {
+    if ($statusfilter !== '') {
         $where .= ' AND t.status = :status';
         $params['status'] = $statusfilter;
     }
 
-    $sql = "SELECT t.*, u.firstname, u.lastname, u.email
-            FROM {paygw_paddle_transactions} t
-            LEFT JOIN {user} u ON u.id = t.userid
-            WHERE {$where}
-            ORDER BY t.timecreated DESC";
+    return [$where, $params];
+}
 
-    $countsql = "SELECT COUNT(*)
-                 FROM {paygw_paddle_transactions} t
-                 LEFT JOIN {user} u ON u.id = t.userid
-                 WHERE {$where}";
+// The CSV export must run before any page output, because it sends its own
+// HTTP headers.
+if ($download !== '' && $tab === 'transactions') {
+    [$where, $params] = paygw_paddle_transaction_filter($search, $statusfilter);
+
+    $sql = "SELECT t.id, t.paddle_transaction_id, t.paddle_customer_id, t.amount, t.currency,
+                   t.tax, t.status, t.component, t.itemid, t.timecreated,
+                   u.firstname, u.lastname, u.email
+              FROM {paygw_paddle_transactions} t
+         LEFT JOIN {user} u ON u.id = t.userid
+             WHERE {$where}
+          ORDER BY t.timecreated DESC";
+
+    $columns = [
+        'transactionid' => get_string('transactionid', 'paygw_paddle'),
+        'customerid' => get_string('paddlecustomerid', 'paygw_paddle'),
+        'user' => get_string('transactionuser', 'paygw_paddle'),
+        'email' => get_string('transactionemail', 'paygw_paddle'),
+        'amount' => get_string('transactionamount', 'paygw_paddle'),
+        'currency' => get_string('pricemapcurrency', 'paygw_paddle'),
+        'tax' => get_string('transactiontax', 'paygw_paddle'),
+        'status' => get_string('transactionstatus', 'paygw_paddle'),
+        'component' => get_string('transactioncomponent', 'paygw_paddle'),
+        'itemid' => get_string('transactionitemid', 'paygw_paddle'),
+        'date' => get_string('transactiondate', 'paygw_paddle'),
+    ];
+
+    // A recordset streams the rows rather than loading every transaction the
+    // site has ever taken into memory.
+    $recordset = $DB->get_recordset_sql($sql, $params);
+
+    \core\dataformat::download_data(
+        'paddle_transactions_' . userdate(time(), '%Y-%m-%d'),
+        $download,
+        $columns,
+        $recordset,
+        function ($record) {
+            return [
+                'transactionid' => $record->paddle_transaction_id,
+                'customerid' => $record->paddle_customer_id,
+                'user' => trim($record->firstname . ' ' . $record->lastname),
+                'email' => $record->email,
+                'amount' => format_float((float) $record->amount, 2, false),
+                'currency' => $record->currency,
+                'tax' => format_float((float) $record->tax, 2, false),
+                'status' => $record->status,
+                'component' => $record->component,
+                'itemid' => $record->itemid,
+                'date' => userdate($record->timecreated),
+            ];
+        }
+    );
+    $recordset->close();
+    exit;
+}
+
+echo $OUTPUT->header();
+echo $OUTPUT->heading(get_string('reports', 'paygw_paddle'));
+
+$tabs = [
+    new tabobject(
+        'transactions',
+        new moodle_url($baseurl, ['tab' => 'transactions']),
+        get_string('tabtransactions', 'paygw_paddle')
+    ),
+    new tabobject(
+        'events',
+        new moodle_url($baseurl, ['tab' => 'events']),
+        get_string('tabevents', 'paygw_paddle')
+    ),
+];
+echo $OUTPUT->tabtree($tabs, $tab);
+
+/**
+ * Map a transaction status to a Bootstrap badge class.
+ *
+ * Both the Bootstrap 4 and Bootstrap 5 class names are emitted so the report
+ * renders correctly on every supported Moodle version.
+ *
+ * @param string $status The stored status.
+ * @return string A class attribute value.
+ */
+function paygw_paddle_status_badge_class(string $status): string {
+    $variants = [
+        'completed' => 'success',
+        'pending' => 'warning',
+        'failed' => 'danger',
+        'refunded' => 'info',
+        'chargeback' => 'dark',
+        'success' => 'success',
+        'error' => 'danger',
+        'skipped' => 'warning',
+    ];
+    $variant = $variants[$status] ?? 'secondary';
+    return "badge badge-{$variant} text-bg-{$variant}";
+}
+
+/**
+ * Return the translated label for a status, falling back to the raw value.
+ *
+ * @param string $prefix Either 'status' or 'result'.
+ * @param string $value The stored value.
+ * @return string
+ */
+function paygw_paddle_status_label(string $prefix, string $value): string {
+    $key = $prefix . '_' . $value;
+    if (get_string_manager()->string_exists($key, 'paygw_paddle')) {
+        return get_string($key, 'paygw_paddle');
+    }
+    return $value;
+}
+
+if ($tab === 'transactions') {
+    [$where, $params] = paygw_paddle_transaction_filter($search, $statusfilter);
+
+    $sql = "SELECT t.*, u.firstname, u.lastname, u.email
+              FROM {paygw_paddle_transactions} t
+         LEFT JOIN {user} u ON u.id = t.userid
+             WHERE {$where}
+          ORDER BY t.timecreated DESC";
+
+    $countsql = "SELECT COUNT(1)
+                   FROM {paygw_paddle_transactions} t
+              LEFT JOIN {user} u ON u.id = t.userid
+                  WHERE {$where}";
 
     $total = $DB->count_records_sql($countsql, $params);
     $records = $DB->get_records_sql($sql, $params, $page * $perpage, $perpage);
 
-    // CSV export.
-    if ($format === 'csv') {
-        $allrecords = $DB->get_records_sql($sql, $params);
-        header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="paddle_transactions_' . date('Y-m-d') . '.csv"');
-        $out = fopen('php://output', 'w');
-        fputcsv($out, ['Transaction ID', 'Customer ID', 'User', 'Email', 'Amount', 'Currency', 'Tax', 'Status', 'Component', 'Item ID', 'Date']);
-        foreach ($allrecords as $r) {
-            fputcsv($out, [
-                $r->paddle_transaction_id,
-                $r->paddle_customer_id,
-                "{$r->firstname} {$r->lastname}",
-                $r->email,
-                number_format($r->amount, 2),
-                $r->currency,
-                number_format($r->tax, 2),
-                $r->status,
-                $r->component,
-                $r->itemid,
-                userdate($r->timecreated),
-            ]);
-        }
-        fclose($out);
-        exit;
-    }
+    $statusoptions = [
+        '' => get_string('allstatuses', 'paygw_paddle'),
+        'pending' => get_string('status_pending', 'paygw_paddle'),
+        'completed' => get_string('status_completed', 'paygw_paddle'),
+        'failed' => get_string('status_failed', 'paygw_paddle'),
+        'refunded' => get_string('status_refunded', 'paygw_paddle'),
+        'chargeback' => get_string('status_chargeback', 'paygw_paddle'),
+    ];
 
-    // Search form.
-    echo html_writer::start_tag('form', ['method' => 'get', 'action' => new moodle_url('/payment/gateway/paddle/admin/reports.php'), 'class' => 'form-inline mb-3']);
-    echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'tab', 'value' => 'transactions']);
-    echo html_writer::empty_tag('input', ['type' => 'text', 'name' => 'search', 'value' => $search, 'placeholder' => get_string('searchtransactions', 'paygw_paddle'), 'class' => 'form-control mr-2']);
-    echo html_writer::select(
-        ['' => get_string('allstatuses', 'paygw_paddle'), 'pending' => 'Pending', 'completed' => 'Completed', 'failed' => 'Failed', 'refunded' => 'Refunded', 'chargeback' => 'Chargeback'],
-        'status', $statusfilter, false, ['class' => 'form-control mr-2']
+    echo html_writer::start_tag(
+        'form',
+        [
+            'method' => 'get',
+            'action' => $baseurl->out(false),
+            'class' => 'd-flex flex-wrap align-items-center mb-3',
+        ]
     );
-    echo html_writer::empty_tag('input', ['type' => 'submit', 'value' => 'Filter', 'class' => 'btn btn-secondary mr-2']);
-    $csvurl = new moodle_url('/payment/gateway/paddle/admin/reports.php', ['tab' => 'transactions', 'search' => $search, 'status' => $statusfilter, 'format' => 'csv']);
-    echo html_writer::link($csvurl, get_string('exportcsv', 'paygw_paddle'), ['class' => 'btn btn-outline-primary']);
+    echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'tab', 'value' => 'transactions']);
+
+    echo html_writer::label(
+        get_string('searchtransactions', 'paygw_paddle'),
+        'paddle-search',
+        true,
+        ['class' => 'sr-only visually-hidden']
+    );
+    echo html_writer::empty_tag(
+        'input',
+        [
+            'type' => 'text',
+            'id' => 'paddle-search',
+            'name' => 'search',
+            'value' => $search,
+            'placeholder' => get_string('searchtransactions', 'paygw_paddle'),
+            'class' => 'form-control mr-2 me-2 mb-2',
+        ]
+    );
+
+    echo html_writer::label(
+        get_string('filterbystatus', 'paygw_paddle'),
+        'paddle-status',
+        true,
+        ['class' => 'sr-only visually-hidden']
+    );
+    echo html_writer::select(
+        $statusoptions,
+        'status',
+        $statusfilter,
+        false,
+        [
+            'id' => 'paddle-status',
+            'class' => 'form-control custom-select form-select mr-2 me-2 mb-2',
+        ]
+    );
+
+    echo html_writer::empty_tag(
+        'input',
+        [
+            'type' => 'submit',
+            'value' => get_string('filter', 'paygw_paddle'),
+            'class' => 'btn btn-secondary mr-2 me-2 mb-2',
+        ]
+    );
+
+    $csvurl = new moodle_url(
+        $baseurl,
+        [
+            'tab' => 'transactions',
+            'search' => $search,
+            'status' => $statusfilter,
+            'download' => 'csv',
+        ]
+    );
+    echo html_writer::link(
+        $csvurl,
+        get_string('exportcsv', 'paygw_paddle'),
+        ['class' => 'btn btn-outline-primary mb-2']
+    );
     echo html_writer::end_tag('form');
 
     if (empty($records)) {
-        echo html_writer::tag('p', get_string('notransactions', 'paygw_paddle'), ['class' => 'alert alert-info']);
+        echo $OUTPUT->notification(
+            get_string('notransactions', 'paygw_paddle'),
+            \core\output\notification::NOTIFY_INFO
+        );
     } else {
         $table = new html_table();
         $table->head = [
@@ -135,63 +294,84 @@ if ($tab === 'transactions') {
         ];
         $table->attributes['class'] = 'generaltable';
 
-        foreach ($records as $r) {
-            $statusclass = '';
-            switch ($r->status) {
-                case 'completed': $statusclass = 'badge badge-success'; break;
-                case 'pending': $statusclass = 'badge badge-warning'; break;
-                case 'failed': $statusclass = 'badge badge-danger'; break;
-                case 'refunded': $statusclass = 'badge badge-info'; break;
-                case 'chargeback': $statusclass = 'badge badge-dark'; break;
-                default: $statusclass = 'badge badge-secondary';
-            }
-
+        foreach ($records as $record) {
+            $payer = trim($record->firstname . ' ' . $record->lastname);
             $table->data[] = [
-                html_writer::tag('code', s($r->paddle_transaction_id)),
-                s("{$r->firstname} {$r->lastname}") . html_writer::empty_tag('br') . html_writer::tag('small', s($r->email)),
-                number_format($r->amount, 2) . ' ' . s($r->currency),
-                number_format($r->tax, 2),
-                html_writer::tag('span', s($r->status), ['class' => $statusclass]),
-                userdate($r->timecreated),
+                html_writer::tag('code', s($record->paddle_transaction_id)),
+                s($payer) . html_writer::empty_tag('br')
+                    . html_writer::tag('small', s($record->email)),
+                format_float((float) $record->amount, 2) . ' ' . s($record->currency),
+                format_float((float) $record->tax, 2),
+                html_writer::tag(
+                    'span',
+                    s(paygw_paddle_status_label('status', $record->status)),
+                    ['class' => paygw_paddle_status_badge_class($record->status)]
+                ),
+                userdate($record->timecreated),
             ];
         }
 
         echo html_writer::table($table);
-        echo $OUTPUT->paging_bar($total, $page, $perpage, new moodle_url('/payment/gateway/paddle/admin/reports.php', ['tab' => 'transactions', 'search' => $search, 'status' => $statusfilter]));
+        $pagingparams = [
+            'tab' => 'transactions',
+            'search' => $search,
+            'status' => $statusfilter,
+        ];
+        echo $OUTPUT->paging_bar(
+            $total,
+            $page,
+            $perpage,
+            new moodle_url($baseurl, $pagingparams)
+        );
     }
-
 } else {
-    // Events tab.
     $total = $DB->count_records('paygw_paddle_events');
-    $events = $DB->get_records('paygw_paddle_events', null, 'timecreated DESC', '*', $page * $perpage, $perpage);
+    $events = $DB->get_records(
+        'paygw_paddle_events',
+        null,
+        'timecreated DESC',
+        '*',
+        $page * $perpage,
+        $perpage
+    );
 
     if (empty($events)) {
-        echo html_writer::tag('p', get_string('noevents', 'paygw_paddle'), ['class' => 'alert alert-info']);
+        echo $OUTPUT->notification(
+            get_string('noevents', 'paygw_paddle'),
+            \core\output\notification::NOTIFY_INFO
+        );
     } else {
         $table = new html_table();
-        $table->head = ['Event ID', get_string('transactionid', 'paygw_paddle'), get_string('eventtype', 'paygw_paddle'), get_string('eventresult', 'paygw_paddle'), get_string('transactiondate', 'paygw_paddle')];
+        $table->head = [
+            get_string('eventid', 'paygw_paddle'),
+            get_string('transactionid', 'paygw_paddle'),
+            get_string('eventtype', 'paygw_paddle'),
+            get_string('eventresult', 'paygw_paddle'),
+            get_string('transactiondate', 'paygw_paddle'),
+        ];
         $table->attributes['class'] = 'generaltable';
 
-        foreach ($events as $ev) {
-            $resultclass = '';
-            switch ($ev->result) {
-                case 'success': $resultclass = 'badge badge-success'; break;
-                case 'error': $resultclass = 'badge badge-danger'; break;
-                case 'skipped': $resultclass = 'badge badge-warning'; break;
-                default: $resultclass = 'badge badge-secondary';
-            }
-
+        foreach ($events as $event) {
             $table->data[] = [
-                html_writer::tag('code', s($ev->paddle_event_id)),
-                html_writer::tag('code', s($ev->paddle_transaction_id ?: '-')),
-                s($ev->event_type),
-                html_writer::tag('span', s($ev->result), ['class' => $resultclass]),
-                userdate($ev->timecreated),
+                html_writer::tag('code', s($event->paddle_event_id)),
+                html_writer::tag('code', s($event->paddle_transaction_id ?: '-')),
+                s($event->event_type),
+                html_writer::tag(
+                    'span',
+                    s(paygw_paddle_status_label('result', $event->result)),
+                    ['class' => paygw_paddle_status_badge_class($event->result)]
+                ),
+                userdate($event->timecreated),
             ];
         }
 
         echo html_writer::table($table);
-        echo $OUTPUT->paging_bar($total, $page, $perpage, new moodle_url('/payment/gateway/paddle/admin/reports.php', ['tab' => 'events']));
+        echo $OUTPUT->paging_bar(
+            $total,
+            $page,
+            $perpage,
+            new moodle_url($baseurl, ['tab' => 'events'])
+        );
     }
 }
 

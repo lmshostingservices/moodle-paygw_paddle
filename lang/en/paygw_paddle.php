@@ -19,112 +19,109 @@
  *
  * @package    paygw_paddle
  * @copyright  2026 AI Grader
+ * @author     AI Grader
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
-
-// Plugin.
+// Plugin identity.
 $string['pluginname'] = 'Paddle Payment Gateway';
 $string['gatewayname'] = 'Paddle';
-$string['plugindesc'] = 'Paddle acts as Merchant of Record, handling global VAT/GST/sales tax calculation, collection, and remittance so you don\'t have to. One-time payments via hosted checkout with automatic enrolment on payment confirmation.';
+$string['plugindesc'] = 'Paddle acts as Merchant of Record, handling global VAT, GST and sales tax calculation, collection and remittance on your behalf. One-time payments through a hosted checkout, with automatic enrolment once payment is confirmed.';
 $string['gatewaydescription'] = 'Pay securely via Paddle. Tax is calculated automatically based on your location.';
 
-// Settings.
-$string['apikey'] = 'API Key';
-$string['apikey_desc'] = 'Your Paddle API key (server-side). Found in Paddle Dashboard > Developer Tools > Authentication.';
-$string['apikey_help'] = 'The Paddle API key is used for server-to-server communication. Keep this secret.';
-$string['clienttoken'] = 'Client-Side Token';
-$string['clienttoken_desc'] = 'Your Paddle client-side token for Paddle.js. Found in Paddle Dashboard > Developer Tools > Authentication.';
-$string['clienttoken_help'] = 'The client-side token initialises Paddle.js in the browser for the checkout overlay.';
-$string['webhooksecret'] = 'Webhook Signing Secret';
-$string['webhooksecret_desc'] = 'The secret key used to verify webhook signatures. Found in Paddle Dashboard > Developer Tools > Notifications.';
-$string['webhooksecret_help'] = 'Paddle signs every webhook with this secret. The plugin verifies signatures to prevent tampering.';
+// Gateway account settings.
+$string['apikey'] = 'API key';
+$string['apikey_help'] = 'The server-side Paddle API key, used for server-to-server calls. Find it in Paddle Dashboard > Developer tools > Authentication. Keep it secret.';
+$string['clienttoken'] = 'Client-side token';
+$string['clienttoken_help'] = 'The client-side token that initialises Paddle.js in the browser for the checkout overlay. Find it in Paddle Dashboard > Developer tools > Authentication.';
+$string['webhooksecret'] = 'Webhook signing secret';
+$string['webhooksecret_help'] = 'Paddle signs every webhook with this secret. The plugin verifies each signature to reject tampered or replayed notifications. Find it in Paddle Dashboard > Developer tools > Notifications, next to the notification destination you created for this site.';
 $string['environment'] = 'Environment';
-$string['environment_desc'] = 'Use Sandbox for testing, Live for production payments.';
-$string['environment_help'] = 'Sandbox mode connects to Paddle\'s test environment. No real payments are processed.';
+$string['environment_help'] = 'Sandbox connects to Paddle\'s test environment, where no real payments are processed. Switch to Live only once you have completed a successful sandbox purchase.';
 $string['environment_live'] = 'Live';
 $string['environment_sandbox'] = 'Sandbox';
-$string['defaultproductid'] = 'Default Product ID';
-$string['defaultproductid_desc'] = 'Your Paddle Product ID (pro_...) used to create dynamic transactions. When set, the plugin creates Paddle transactions with the exact price configured in Moodle\'s Enrolment on Payment settings — no per-course Price IDs are needed. Recommended over Default Price ID for per-course pricing.';
-$string['defaultproductid_help'] = 'Create a product in Paddle Dashboard under Catalog > Products and copy the Product ID (starts with pro_). The plugin will create a one-time Paddle transaction with the exact cost configured in Moodle\'s enrolment settings. Tax is calculated automatically by Paddle based on the buyer\'s location.';
-$string['defaultpriceid'] = 'Default Price ID (advanced)';
-$string['defaultpriceid_desc'] = 'Optional. A Paddle catalog Price ID (pri_...) used when no course-specific price mapping exists. If set, this overrides the Default Product ID. Leave empty to use per-course pricing via the Default Product ID above.';
-$string['defaultpriceid_help'] = 'Advanced: Create prices in your Paddle Dashboard under Catalog > Prices. Each price has a unique ID starting with pri_. If you use per-course price mapping (admin/pricemap.php), that mapping takes priority over this field.';
-$string['productid_or_priceid_required'] = 'You must provide either a Default Product ID or a Default Price ID.';
-$string['checkouturl'] = 'Custom Checkout URL';
-$string['checkouturl_desc'] = 'Optional. Override the default checkout page URL. Leave empty to use the built-in checkout page.';
-$string['checkouturl_help'] = 'If set, this URL will be used as the Paddle checkout page instead of the built-in one. Must be an approved domain in your Paddle settings.';
-$string['refundaction'] = 'Refund Action';
-$string['refundaction_desc'] = 'What happens when Paddle issues a refund or chargeback for a completed payment.';
-$string['refundaction_help'] = 'Choose what happens to the user\'s enrolment when a refund is processed by Paddle.';
-$string['refundaction_unenrol'] = 'Unenrol user from course';
+$string['defaultproductid'] = 'Default product ID';
+$string['defaultproductid_help'] = 'Create a product in Paddle Dashboard under Catalog > Products and paste its ID here (it starts with pro_). The plugin then creates each transaction with the exact cost configured in Moodle\'s enrolment settings, so you do not need a Paddle price for every course. Tax is calculated by Paddle based on the buyer\'s location. This is the recommended setup.';
+$string['defaultpriceid'] = 'Default price ID (advanced)';
+$string['defaultpriceid_help'] = 'Optional. A Paddle catalog price ID (starting with pri_) used when no course-specific mapping exists. If set, it overrides the default product ID and Paddle controls the amount charged rather than Moodle. Leave empty unless you manage pricing inside Paddle.';
+$string['productid_or_priceid_required'] = 'Enter either a default product ID or a default price ID.';
+$string['checkouturl'] = 'Custom checkout URL';
+$string['checkouturl_help'] = 'Optional. Overrides the built-in checkout page. Whatever you enter must be listed as an approved domain in your Paddle checkout settings. Leave empty to use the page that ships with this plugin.';
+$string['refundaction'] = 'On refund or chargeback';
+$string['refundaction_help'] = 'What should happen to the learner\'s enrolment when Paddle approves a refund or a chargeback for a completed payment.';
+$string['refundaction_unenrol'] = 'Unenrol the learner from the course';
+$string['refundaction_nothing'] = 'Leave the enrolment in place';
 
-// Pre-checkout billing details form (pay.php).
-$string['billingdetails']             = 'Billing Details';
-$string['billingdetails_desc']        = 'Please confirm your billing details for the payment invoice. These details appear on your receipt.';
-$string['ordertotal']                 = 'Order total';
-$string['fullname']                   = 'Full Name';
-$string['fullname_placeholder']       = 'e.g. Jane Smith';
-$string['companyname']                = 'Company Name (optional)';
-$string['companyname_placeholder']    = 'e.g. Acme Pty Ltd';
-$string['companyname_help']           = 'Only fill this in if you are paying on behalf of a business. Leave blank to receive a personal invoice.';
-$string['addressline1']               = 'Address Line 1';
-$string['addressline1_placeholder']   = 'e.g. 123 Main Street';
-$string['city']                       = 'Suburb / City';
-$string['city_placeholder']           = 'e.g. Sydney';
-$string['postcode']                   = 'Postcode';
-$string['postcode_placeholder']       = 'e.g. 2000';
-$string['country']                    = 'Country';
-$string['country_placeholder']        = 'Select your country';
-$string['paddlecollects']             = 'All payment details are handled securely by Paddle.';
-$string['continuetopayment']          = 'Continue to Secure Payment';
+// Pre-checkout billing details form.
+$string['billingdetails'] = 'Billing details';
+$string['billingdetails_desc'] = 'Confirm your billing details. These appear on the invoice Paddle issues for this payment.';
+$string['ordertotal'] = 'Order total';
+$string['fullname'] = 'Full name';
+$string['fullname_placeholder'] = 'e.g. Jane Smith';
+$string['companyname'] = 'Company name (optional)';
+$string['companyname_placeholder'] = 'e.g. Acme Pty Ltd';
+$string['companyname_help'] = 'Fill this in only if you are paying on behalf of a business. Leave it blank to receive a personal invoice.';
+$string['addressline1'] = 'Address line 1';
+$string['addressline1_placeholder'] = 'e.g. 123 Main Street';
+$string['city'] = 'Suburb or city';
+$string['city_placeholder'] = 'e.g. Sydney';
+$string['postcode'] = 'Postcode';
+$string['postcode_placeholder'] = 'e.g. 2000';
+$string['country'] = 'Country';
+$string['country_placeholder'] = 'Select your country';
+$string['continuetopayment'] = 'Continue to secure payment';
+$string['paddlecollects'] = 'Card details are collected and stored by Paddle. This site never sees them.';
 
-// Checkout / Process.
-$string['checkout'] = 'Secure Checkout';
+// Checkout and return pages.
+$string['checkout'] = 'Secure checkout';
 $string['loadingcheckout'] = 'Loading secure checkout...';
-$string['paymentprocessing'] = 'Payment Processing';
-$string['paymentsuccess'] = 'Payment successful! You have been enrolled in the course.';
-$string['paymentpending'] = 'Payment is being processed...';
-$string['paymentpendingdetail'] = 'Your payment is being confirmed by Paddle. This usually takes a few seconds. The page will refresh automatically.';
-$string['refreshstatus'] = 'Refresh Status';
-$string['gotocourse'] = 'Go to Course';
+$string['checkoutfailed'] = 'The checkout could not be loaded. Return to the course and try again, or contact the site administrator if the problem continues.';
+$string['paymentprocessing'] = 'Payment processing';
+$string['paymentsuccess'] = 'Payment successful. You have been enrolled in the course.';
+$string['paymentpending'] = 'Confirming your payment...';
+$string['paymentpendingdetail'] = 'Paddle is confirming your payment. This usually takes a few seconds and this page will update on its own.';
+$string['paymenttakinglonger'] = 'Your payment is taking longer than usual to confirm. Your card has not been charged twice. Refresh this page in a few minutes, or contact the site administrator if you have received a Paddle receipt but are still not enrolled.';
+$string['refreshstatus'] = 'Refresh status';
+$string['gotocourse'] = 'Go to course';
 
 // Admin pages.
-$string['pricemap'] = 'Paddle Price Mapping';
-$string['pricemap_desc'] = 'Map Moodle courses to Paddle Price IDs for per-course pricing.';
-$string['reports'] = 'Paddle Transaction Reports';
-$string['reports_desc'] = 'View and search Paddle payment transactions and webhook events.';
+$string['pricemap'] = 'Paddle price mapping';
+$string['reports'] = 'Paddle transaction reports';
+$string['tabtransactions'] = 'Transactions';
+$string['tabevents'] = 'Webhook events';
 
 // Price mapping.
 $string['coursename'] = 'Course';
-$string['paddlepriceid'] = 'Paddle Price ID';
+$string['coursedeleted'] = 'Course {$a} (deleted)';
+$string['paddlepriceid'] = 'Paddle price ID';
 $string['pricemapamount'] = 'Amount';
 $string['pricemapcurrency'] = 'Currency';
 $string['pricemapdescription'] = 'Description';
 $string['pricemapactive'] = 'Active';
-$string['addpricemapping'] = 'Add Price Mapping';
-$string['editpricemapping'] = 'Edit Price Mapping';
-$string['deletepricemapping'] = 'Delete Price Mapping';
+$string['pricemapenable'] = 'Enable';
+$string['pricemapdisable'] = 'Disable';
+$string['pricemapactions'] = 'Actions';
+$string['addpricemapping'] = 'Add price mapping';
 $string['confirmdeletepricemap'] = 'Are you sure you want to delete this price mapping?';
-$string['pricemapsaved'] = 'Price mapping saved successfully.';
+$string['pricemapsaved'] = 'Price mapping saved.';
 $string['pricemapdeleted'] = 'Price mapping deleted.';
-$string['nopricemappings'] = 'No price mappings configured. The default Price ID from settings will be used for all courses.';
+$string['pricemapduplicate'] = 'That course already has a price mapping. Edit or delete the existing one first.';
+$string['nopricemappings'] = 'No price mappings are configured. Every course uses the default product or price ID from the payment account gateway settings.';
 
-// Price mapping instructions.
-$string['pricemap_whatisit'] = 'What is Price Mapping?';
-$string['pricemap_whatisit_desc'] = 'Price mapping lets you charge different prices for different courses. In Paddle, every price is a separate "Price" object with its own ID (e.g. pri_01abc123). By default, all courses use the same Default Price ID from your Payment Account gateway settings. This page lets you override that on a per-course basis so each course can have its own price, currency, and amount.';
+// Price mapping guidance.
+$string['pricemap_whatisit'] = 'What is price mapping?';
+$string['pricemap_whatisit_desc'] = 'Price mapping lets you charge a different amount for particular courses by pointing them at a specific Paddle price. Most sites do not need it: with a default product ID configured, each course is charged the cost set in its enrolment on payment settings. Use this page only when you manage prices inside the Paddle catalog instead.';
 $string['pricemap_howitworks'] = 'How to set up a price mapping';
-$string['pricemap_step1'] = 'In your <strong>Paddle Dashboard</strong>, go to <strong>Catalog > Products</strong> and create a product (or use an existing one).';
-$string['pricemap_step2'] = 'Under that product, click <strong>Add Price</strong>. Set the amount, currency, and billing type to <strong>One-time</strong>. Save it and copy the <strong>Price ID</strong> (starts with <code>pri_</code>).';
-$string['pricemap_step3'] = 'Back here, select the Moodle course, paste the Paddle Price ID, and enter the amount and currency for your reference (these are display-only — Paddle controls the actual charge).';
-$string['pricemap_step4'] = 'Click <strong>Add Price Mapping</strong>. When a student enrols in that course, the plugin will use this specific Price ID instead of the default one.';
+$string['pricemap_step1'] = 'In your Paddle dashboard, go to Catalog > Products and create a product, or open an existing one.';
+$string['pricemap_step2'] = 'Under that product, choose Add price. Set the amount and currency, set the billing type to one-time, save, and copy the price ID (it starts with pri_).';
+$string['pricemap_step3'] = 'Back on this page, choose the Moodle course, paste the price ID, and record the amount and currency for your own reference. Paddle, not Moodle, controls what is actually charged.';
+$string['pricemap_step4'] = 'Save the mapping. Learners enrolling in that course are charged using this price ID instead of the default.';
 $string['pricemap_fields'] = 'Field descriptions';
-$string['pricemap_field_course'] = '<strong>Course</strong> — The Moodle course this price applies to.';
-$string['pricemap_field_priceid'] = '<strong>Paddle Price ID</strong> — The unique price identifier from your Paddle Dashboard (e.g. <code>pri_01jm5kp7...</code>). This is what Paddle uses to determine the charge amount.';
-$string['pricemap_field_amount'] = '<strong>Amount</strong> — The display amount for your reference (e.g. 99.00). This does not affect the actual charge — Paddle uses the amount configured on the Price ID.';
-$string['pricemap_field_currency'] = '<strong>Currency</strong> — The display currency code (e.g. AUD, USD). For reference only.';
-$string['pricemap_field_description'] = '<strong>Description</strong> — An optional note for your own records (e.g. "Certificate IV in WHS enrolment").';
+$string['pricemap_field_course'] = 'Course: the Moodle course this price applies to.';
+$string['pricemap_field_priceid'] = 'Paddle price ID: the identifier from your Paddle dashboard, for example pri_01jm5kp7. This is what determines the amount charged.';
+$string['pricemap_field_amount'] = 'Amount: a display value for your own reference. It does not affect the charge.';
+$string['pricemap_field_currency'] = 'Currency: a display value for your own reference.';
+$string['pricemap_field_description'] = 'Description: an optional note for your records.';
 
 // Reports.
 $string['transactionid'] = 'Transaction ID';
@@ -134,25 +131,75 @@ $string['transactionamount'] = 'Amount';
 $string['transactiontax'] = 'Tax';
 $string['transactiondate'] = 'Date';
 $string['transactionuser'] = 'User';
-$string['eventtype'] = 'Event Type';
+$string['transactioncomponent'] = 'Component';
+$string['transactionitemid'] = 'Item ID';
+$string['transactionemail'] = 'Email';
+$string['eventid'] = 'Event ID';
+$string['eventtype'] = 'Event type';
 $string['eventresult'] = 'Result';
 $string['notransactions'] = 'No transactions found.';
 $string['noevents'] = 'No webhook events found.';
-$string['searchtransactions'] = 'Search transactions...';
-$string['filterbydate'] = 'Filter by date';
+$string['searchtransactions'] = 'Search transactions';
+$string['filter'] = 'Filter';
 $string['filterbystatus'] = 'Filter by status';
 $string['allstatuses'] = 'All statuses';
 $string['exportcsv'] = 'Export CSV';
-$string['viewevents'] = 'View Events';
-$string['reprocessevent'] = 'Reprocess Event';
+$string['status_pending'] = 'Pending';
+$string['status_completed'] = 'Completed';
+$string['status_failed'] = 'Failed';
+$string['status_refunded'] = 'Refunded';
+$string['status_chargeback'] = 'Chargeback';
+$string['result_pending'] = 'Pending';
+$string['result_success'] = 'Success';
+$string['result_skipped'] = 'Skipped';
+$string['result_error'] = 'Error';
 
 // Errors.
-$string['missingconfig'] = 'Paddle payment gateway is not configured. Please contact the site administrator.';
-$string['missingpriceid'] = 'No Paddle Price ID configured for this course. Please contact the site administrator.';
-$string['apierror'] = 'Paddle API error. Please try again or contact the site administrator.';
-$string['webhook_missing_metadata'] = 'Webhook event is missing required metadata (component, paymentarea, itemid, or userid).';
-$string['webhook_missing_txnid'] = 'Webhook adjustment event is missing transaction ID.';
-$string['paddle:manage'] = 'Manage Paddle payment gateway settings';
+$string['missingconfig'] = 'The Paddle payment gateway is not configured. Please contact the site administrator.';
+$string['missingpriceid'] = 'No Paddle product or price ID is configured for this course. Please contact the site administrator.';
+$string['apierror'] = 'Paddle could not be reached. Please try again, or contact the site administrator if the problem continues.';
+$string['invalidbillingdetails'] = 'Please complete every required billing field before continuing.';
+$string['invalidcurrency'] = 'Enter a three-letter currency code that Paddle supports, for example AUD.';
+$string['webhook_missing_metadata'] = 'Webhook event is missing required metadata (component, paymentarea, itemid or userid).';
+$string['webhook_missing_txnid'] = 'Webhook adjustment event is missing a transaction ID.';
+
+// Capabilities.
+$string['paddle:manage'] = 'Manage Paddle payment gateway settings and price mappings';
 $string['paddle:viewreports'] = 'View Paddle transaction reports';
 
-$string['privacy:metadata'] = 'The paygw_paddle plugin does not store any personal data.';
+// Privacy.
+$string['privacy:metadata:paygw_paddle_transactions'] = 'Payment records created when a learner pays through the Paddle gateway.';
+$string['privacy:metadata:paygw_paddle_transactions:userid'] = 'The Moodle user ID of the payer.';
+$string['privacy:metadata:paygw_paddle_transactions:component'] = 'The Moodle payment component, for example enrol_fee.';
+$string['privacy:metadata:paygw_paddle_transactions:paymentarea'] = 'The Moodle payment area.';
+$string['privacy:metadata:paygw_paddle_transactions:itemid'] = 'The Moodle item ID being paid for.';
+$string['privacy:metadata:paygw_paddle_transactions:paddle_transaction_id'] = 'The Paddle transaction ID.';
+$string['privacy:metadata:paygw_paddle_transactions:paddle_customer_id'] = 'The Paddle customer ID linked to the payer.';
+$string['privacy:metadata:paygw_paddle_transactions:amount'] = 'The payment amount.';
+$string['privacy:metadata:paygw_paddle_transactions:currency'] = 'The ISO 4217 currency code.';
+$string['privacy:metadata:paygw_paddle_transactions:tax'] = 'The tax amount calculated by Paddle.';
+$string['privacy:metadata:paygw_paddle_transactions:status'] = 'The transaction status.';
+$string['privacy:metadata:paygw_paddle_transactions:timecreated'] = 'The time the transaction was created.';
+$string['privacy:metadata:paygw_paddle_transactions:timemodified'] = 'The time the transaction last changed.';
+
+$string['privacy:metadata:paygw_paddle_events'] = 'Webhook notifications received from Paddle, retained as an audit trail and to stop the same notification being processed twice. The stored payload can contain the payer\'s name, email address and billing address.';
+$string['privacy:metadata:paygw_paddle_events:paddle_event_id'] = 'The Paddle event ID.';
+$string['privacy:metadata:paygw_paddle_events:paddle_transaction_id'] = 'The Paddle transaction the event relates to.';
+$string['privacy:metadata:paygw_paddle_events:event_type'] = 'The type of Paddle event, for example transaction.completed.';
+$string['privacy:metadata:paygw_paddle_events:result'] = 'The outcome of processing the event.';
+$string['privacy:metadata:paygw_paddle_events:error_message'] = 'Any error recorded while processing the event.';
+$string['privacy:metadata:paygw_paddle_events:raw_payload'] = 'The full notification body sent by Paddle, which can include the payer\'s name, email address and billing address.';
+$string['privacy:metadata:paygw_paddle_events:timecreated'] = 'The time the event was received.';
+
+$string['privacy:metadata:paddle'] = 'To take a payment, billing details are sent to Paddle, which acts as Merchant of Record for the transaction. Paddle stores this data under its own privacy policy.';
+$string['privacy:metadata:paddle:name'] = 'The payer\'s full name, shown on the invoice Paddle issues.';
+$string['privacy:metadata:paddle:email'] = 'The payer\'s email address, used to identify the Paddle customer record and to deliver the receipt.';
+$string['privacy:metadata:paddle:address'] = 'The payer\'s street address.';
+$string['privacy:metadata:paddle:city'] = 'The payer\'s suburb or city.';
+$string['privacy:metadata:paddle:postcode'] = 'The payer\'s postcode.';
+$string['privacy:metadata:paddle:country'] = 'The payer\'s country, used to calculate the applicable tax.';
+$string['privacy:metadata:paddle:business'] = 'The company name, when the payer states they are buying on behalf of a business.';
+$string['privacy:metadata:paddle:userid'] = 'The Moodle user ID, sent as transaction metadata so the payment can be matched back to the right account when Paddle confirms it.';
+
+$string['privacy:path:transactions'] = 'Paddle transactions';
+$string['privacy:path:events'] = 'Paddle webhook events';

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="payment/gateway/paddle/db" VERSION="2026022500" COMMENT="XMLDB file for paygw_paddle"
+<XMLDB PATH="payment/gateway/paddle/db" VERSION="2026082900" COMMENT="XMLDB file for paygw_paddle"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../../lib/xmldb/xmldb.xsd">
   <TABLES>

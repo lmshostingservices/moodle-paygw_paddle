@@ -1,0 +1,159 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template paygw_paddle/billing_form
+
+    Pre-checkout billing details form.
+
+    Collects the name and postal address that appear on the invoice Paddle
+    issues, because Paddle's own overlay only asks for email, country and
+    postcode.
+
+    Context variables required for this template:
+    * formaction - URL the form posts to
+    * sesskey - session key
+    * component - Moodle payment component
+    * paymentarea - Moodle payment area
+    * itemid - Moodle item id
+    * costdisplay - formatted order total
+    * fullname - prefilled full name
+    * address - prefilled address line 1
+    * city - prefilled suburb or city
+    * postcode - prefilled postcode
+    * hascountry - true when the country is known from the user profile
+    * country - the known two-letter country code
+    * countries - array of {code, name, selected} for the country select
+
+    Example context (json):
+    {
+        "formaction": "/payment/gateway/paddle/pay.php",
+        "sesskey": "abc123",
+        "component": "enrol_fee",
+        "paymentarea": "fee",
+        "itemid": 42,
+        "costdisplay": "A$99.00",
+        "fullname": "Jane Smith",
+        "address": "123 Main Street",
+        "city": "Sydney",
+        "postcode": "2000",
+        "hascountry": true,
+        "country": "AU",
+        "countries": []
+    }
+}}
+<div class="paygw-paddle-billing">
+
+    <div class="paygw-paddle-summary card">
+        <div class="card-body">
+            <p class="paygw-paddle-summary-label text-muted">{{#str}} ordertotal, paygw_paddle {{/str}}</p>
+            <p class="paygw-paddle-summary-total">{{costdisplay}}</p>
+        </div>
+    </div>
+
+    <h4>{{#str}} billingdetails, paygw_paddle {{/str}}</h4>
+    <p class="paygw-paddle-intro text-muted">{{#str}} billingdetails_desc, paygw_paddle {{/str}}</p>
+
+    <form method="post" action="{{formaction}}" autocomplete="on">
+        <input type="hidden" name="sesskey" value="{{sesskey}}">
+        <input type="hidden" name="component" value="{{component}}">
+        <input type="hidden" name="paymentarea" value="{{paymentarea}}">
+        <input type="hidden" name="itemid" value="{{itemid}}">
+        <input type="hidden" name="submitted" value="1">
+
+        <div class="paygw-paddle-field">
+            <label class="form-label d-block" for="paddle_fullname">
+                {{#str}} fullname, paygw_paddle {{/str}}
+                <span class="paygw-paddle-required text-danger" aria-hidden="true">*</span>
+                <span class="sr-only visually-hidden">{{#str}} required {{/str}}</span>
+            </label>
+            <input type="text" class="form-control" id="paddle_fullname" name="paddle_fullname"
+                value="{{fullname}}" required autocomplete="name"
+                placeholder="{{#str}} fullname_placeholder, paygw_paddle {{/str}}">
+        </div>
+
+        <div class="paygw-paddle-field">
+            <label class="form-label d-block" for="paddle_company">
+                {{#str}} companyname, paygw_paddle {{/str}}
+            </label>
+            <input type="text" class="form-control" id="paddle_company" name="paddle_company"
+                value="" autocomplete="organization" aria-describedby="paddle_company_help"
+                placeholder="{{#str}} companyname_placeholder, paygw_paddle {{/str}}">
+            <small id="paddle_company_help" class="form-text text-muted">
+                {{#str}} companyname_help, paygw_paddle {{/str}}
+            </small>
+        </div>
+
+        <div class="paygw-paddle-field">
+            <label class="form-label d-block" for="paddle_address">
+                {{#str}} addressline1, paygw_paddle {{/str}}
+                <span class="paygw-paddle-required text-danger" aria-hidden="true">*</span>
+                <span class="sr-only visually-hidden">{{#str}} required {{/str}}</span>
+            </label>
+            <input type="text" class="form-control" id="paddle_address" name="paddle_address"
+                value="{{address}}" required autocomplete="street-address"
+                placeholder="{{#str}} addressline1_placeholder, paygw_paddle {{/str}}">
+        </div>
+
+        <div class="paygw-paddle-field">
+            <label class="form-label d-block" for="paddle_city">
+                {{#str}} city, paygw_paddle {{/str}}
+                <span class="paygw-paddle-required text-danger" aria-hidden="true">*</span>
+                <span class="sr-only visually-hidden">{{#str}} required {{/str}}</span>
+            </label>
+            <input type="text" class="form-control" id="paddle_city" name="paddle_city"
+                value="{{city}}" required autocomplete="address-level2"
+                placeholder="{{#str}} city_placeholder, paygw_paddle {{/str}}">
+        </div>
+
+        <div class="paygw-paddle-field">
+            <label class="form-label d-block" for="paddle_postcode">
+                {{#str}} postcode, paygw_paddle {{/str}}
+                <span class="paygw-paddle-required text-danger" aria-hidden="true">*</span>
+                <span class="sr-only visually-hidden">{{#str}} required {{/str}}</span>
+            </label>
+            <input type="text" class="form-control" id="paddle_postcode" name="paddle_postcode"
+                value="{{postcode}}" required autocomplete="postal-code"
+                placeholder="{{#str}} postcode_placeholder, paygw_paddle {{/str}}">
+        </div>
+
+        {{#hascountry}}
+            <input type="hidden" name="paddle_country" value="{{country}}">
+        {{/hascountry}}
+        {{^hascountry}}
+            <div class="paygw-paddle-field">
+                <label class="form-label d-block" for="paddle_country">
+                    {{#str}} country, paygw_paddle {{/str}}
+                    <span class="paygw-paddle-required text-danger" aria-hidden="true">*</span>
+                    <span class="sr-only visually-hidden">{{#str}} required {{/str}}</span>
+                </label>
+                <select class="form-control custom-select form-select" id="paddle_country"
+                    name="paddle_country" required autocomplete="country">
+                    <option value="">{{#str}} country_placeholder, paygw_paddle {{/str}}</option>
+                    {{#countries}}
+                        <option value="{{code}}">{{name}}</option>
+                    {{/countries}}
+                </select>
+            </div>
+        {{/hascountry}}
+
+        <button type="submit" class="btn btn-primary btn-block w-100">
+            {{#str}} continuetopayment, paygw_paddle {{/str}}
+        </button>
+
+        <p class="form-text text-muted mt-3">{{#str}} paddlecollects, paygw_paddle {{/str}}</p>
+    </form>
+</div>

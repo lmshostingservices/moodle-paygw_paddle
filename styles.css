@@ -1,0 +1,48 @@
+/* Styles for the paygw_paddle pre-checkout billing form and checkout page. */
+
+.path-payment-gateway-paddle .paygw-paddle-billing {
+    margin: 2rem auto;
+    max-width: 30rem;
+}
+
+.path-payment-gateway-paddle .paygw-paddle-summary {
+    margin-bottom: 1.5rem;
+}
+
+.path-payment-gateway-paddle .paygw-paddle-summary-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+}
+
+.path-payment-gateway-paddle .paygw-paddle-summary-total {
+    font-size: 1.375rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.path-payment-gateway-paddle .paygw-paddle-intro {
+    margin-bottom: 1.25rem;
+}
+
+.path-payment-gateway-paddle .paygw-paddle-field {
+    margin-bottom: 1rem;
+}
+
+.path-payment-gateway-paddle .paygw-paddle-required {
+    font-weight: 700;
+}
+
+.path-payment-gateway-paddle .paygw-paddle-checkout-status {
+    padding: 2rem 1rem;
+    text-align: center;
+}
+
+.path-payment-gateway-paddle .paygw-paddle-spinner {
+    display: inline-block;
+    height: 1.5rem;
+    margin-bottom: 0.75rem;
+    width: 1.5rem;
+}

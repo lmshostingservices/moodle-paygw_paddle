@@ -1,4 +1,3 @@
-<?php
 // This file is part of Moodle - http://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -15,21 +14,28 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version metadata for the Paddle payment gateway plugin.
+ * Re-checks whether Paddle has confirmed a payment yet.
  *
- * The release history lives in CHANGELOG.md.
+ * The attempt counter lives in the URL, so the server decides when to stop
+ * polling and show the payer an explanation instead of reloading forever.
  *
- * @package    paygw_paddle
+ * @module     paygw_paddle/poll_status
  * @copyright  2026 AI Grader
- * @author     AI Grader
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-defined('MOODLE_INTERNAL') || die();
-
-$plugin->component = 'paygw_paddle';
-$plugin->version   = 2026082901;
-$plugin->requires  = 2022112800;  // Moodle 4.1 LTS.
-$plugin->supported = [401, 500];  // Moodle 4.1 LTS to 5.0.
-$plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = '1.0.34';
+define([], function () {
+    return {
+        /**
+         * Reload the status page once, after a delay.
+         *
+         * @param {String} nextUrl The URL to load, carrying the next attempt number.
+         * @param {Number} delay How long to wait, in milliseconds.
+         * @returns {void}
+         */
+        init: function (nextUrl, delay) {
+            window.setTimeout(function () {
+                window.location.assign(nextUrl);
+            }, delay);
+        }
+    };
+});
