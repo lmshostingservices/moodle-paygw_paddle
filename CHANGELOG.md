@@ -1,5 +1,16 @@
 # Changelog
 
+## [v1.0.36] - 2026-09-01
+
+Version reissue. The code is identical to 1.0.35, which was withdrawn from
+staging before release: it had been built as an uploaded artifact with no
+corresponding repository commit or immutable tag, so it could never satisfy the
+release provenance gate. 1.0.36 carries the same changes under a number that has
+never been staged.
+
+See the 1.0.35 entry below for what actually changed. No PHP behaviour,
+settings or database schema changes in either release.
+
 ## [v1.0.35] - 2026-09-01
 
 JavaScript only. No PHP behaviour, settings or database schema changes.
