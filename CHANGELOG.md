@@ -1,6 +1,31 @@
 # Changelog
 
-## 1.0.34 (2026-08-29)
+## [v1.0.35] - 2026-09-01
+
+JavaScript only. No PHP behaviour, settings or database schema changes.
+
+### Fixed
+
+- Paddle.js is loaded through a RequireJS context belonging to this plugin
+  (`context: 'paygw_paddle'`) instead of by calling `requirejs.config()` on the
+  default context. The default context is the one Moodle core uses, including
+  for its jQuery isolation map, and reconfiguring it at runtime can disturb
+  module resolution elsewhere on the page. The named context is created fresh
+  and shares nothing with it, while still letting RequireJS request the script
+  so Paddle.js's anonymous `define()` is attributed correctly.
+
+  A plain `<script>` tag was considered and rejected: Paddle.js is a UMD bundle
+  that registers through `define()` whenever one exists, which is what produced
+  the "Mismatched anonymous define() module" failures in 1.0.17 and 1.0.18.
+
+### Changed
+
+- Changelog headings use the `## [vX.Y.Z] - YYYY-MM-DD` form, and the file is
+  named `CHANGELOG.md`.
+- The webhook's `$_SERVER` signature-header read carries a comment explaining
+  why no Moodle wrapper is used and how the value is treated.
+
+## [v1.0.34] - 2026-08-29
 
 Release pipeline compliance pass on top of 1.0.33. No functional or schema changes.
 
@@ -13,11 +38,10 @@ Release pipeline compliance pass on top of 1.0.33. No functional or schema chang
   parenthesis, except where the final argument is an array literal — the form
   Moodle core itself uses.
 - Maturity set back to `MATURITY_STABLE`.
-- Changelog renamed from `CHANGES.md` to `CHANGELOG.md`.
 - Added an explicit note in each entry-point script explaining why it does or
   does not need a capability check.
 
-## 1.0.33 (2026-08-29)
+## [v1.0.33] - 2026-08-29
 
 A review pass ahead of submission to the Moodle plugins directory. No database
 schema changes.
@@ -80,78 +104,78 @@ schema changes.
 - Declared support for Moodle 4.1 LTS to 5.0; maturity lowered to release candidate
   for the first public release.
 
-## 1.0.32 (2026-07-22)
+## [v1.0.32] - 2026-07-22
 
 Reports page fatal error fixed: `html_writer::tag('br')` replaced with
 `html_writer::empty_tag('br')`.
 
-## 1.0.31 (2026-07-22)
+## [v1.0.31] - 2026-07-22
 
 Checkout no longer passes both `customer.id` and a raw `customer.address` to
 `Paddle.Checkout.open()`, which Paddle rejected with "Something went wrong".
 
-## 1.0.30 (2026-07-21)
+## [v1.0.30] - 2026-07-21
 
 Country is asked for when the learner's profile has none, so the checkout overlay no
 longer fails for those learners.
 
-## 1.0.29 (2026-06-04)
+## [v1.0.29] - 2026-06-04
 
 Savepoint marker for a clean upgrade path.
 
-## 1.0.27 (2026-05-12)
+## [v1.0.27] - 2026-05-12
 
 Paddle API calls moved from raw `curl_init()` to Moodle's `curl` wrapper.
 
-## 1.0.25 (2026-05-07)
+## [v1.0.25] - 2026-05-07
 
 Address line 1, suburb and postcode made mandatory on the billing form.
 
-## 1.0.24 (2026-05-06)
+## [v1.0.24] - 2026-05-06
 
 Customer lookup by email fixed. The previous `email[]` filter is not a valid Paddle
 parameter, so Paddle ignored it and returned the most recently created customer
 regardless of email, mixing up customer records.
 
-## 1.0.22 (2026-05-01)
+## [v1.0.22] - 2026-05-01
 
 Buyer name now appears on Paddle invoices, by creating a customer and address through
 the Paddle API rather than sending the individual's name as a business name.
 
-## 1.0.20 (2026-04-29)
+## [v1.0.20] - 2026-04-29
 
 Pre-checkout billing details form added.
 
-## 1.0.19 (2026-04-29)
+## [v1.0.19] - 2026-04-29
 
 Moodle profile data passed to Paddle so checkout is prefilled.
 
-## 1.0.18 (2026-04-17)
+## [v1.0.18] - 2026-04-17
 
 Worked around Paddle.js's UMD wrapper conflicting with RequireJS. Superseded in
 1.0.33.
 
-## 1.0.17 (2026-04-16)
+## [v1.0.17] - 2026-04-16
 
 Removed `js_init_code()` from the checkout page, which caused an AMD conflict and an
 over-length cache key.
 
-## 1.0.16 (2026-04-04)
+## [v1.0.16] - 2026-04-04
 
 Resynchronised the stale `amd/build/gateways_modal.min.js`.
 
-## 1.0.15 (2026-03-30)
+## [v1.0.15] - 2026-03-30
 
 Removed `admin_externalpage_setup()` calls referring to unregistered page IDs.
 
-## 1.0.13 (2026-03-30)
+## [v1.0.13] - 2026-03-30
 
 Added the missing non-minified AMD build file and the default product ID setting.
 
-## 1.0.12 (2026-03-29)
+## [v1.0.12] - 2026-03-29
 
 Added the `gateways_modal` AMD module required by core's payment modal.
 
-## 1.0.10 (2026-03-28)
+## [v1.0.10] - 2026-03-28
 
 Set `$settings = null` to stop Moodle creating a duplicate admin page.

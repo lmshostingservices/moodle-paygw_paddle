@@ -19,12 +19,15 @@
  * Paddle.js ships with a UMD wrapper: when window.define exists it registers
  * through AMD instead of assigning window.Paddle. Loading it from a plain
  * script tag while RequireJS is active therefore raises "Mismatched anonymous
- * define() module" and Paddle never becomes available.
+ * define() module" and Paddle never becomes available, so RequireJS has to be
+ * the one that requests the script.
  *
- * The fix is to let RequireJS load it. Registering the CDN URL under a module
- * name and requiring that name means RequireJS is the one that asked for the
- * anonymous define() call, so it attributes the module correctly. Nothing on
- * the page is monkey-patched.
+ * It must not, however, be the RequireJS context that Moodle itself uses. A
+ * bare requirejs.config() call merges into the default context -- the same one
+ * that holds core's jquery/jqueryprivate map -- and reconfiguring it at runtime
+ * can disturb module resolution for the whole page. So Paddle.js is loaded
+ * through a separate named context instead. Nothing shared is touched: no
+ * global is patched, and the default context is never reconfigured.
  *
  * @module     paygw_paddle/checkout
  * @copyright  2026 AI Grader
@@ -34,9 +37,16 @@ define([], function () {
 
     var PADDLE_MODULE = 'paygw_paddle_paddlejs';
     var PADDLE_URL = 'https://cdn.paddle.com/paddle/v2/paddle';
+    var PADDLE_CONTEXT = 'paygw_paddle';
 
     /**
-     * Load Paddle.js through RequireJS.
+     * Load Paddle.js through a RequireJS context of our own.
+     *
+     * Passing a context name makes RequireJS create and configure a separate
+     * context rather than merging into the default one that Moodle core uses.
+     * That keeps core's module resolution -- in particular its jQuery isolation
+     * map -- untouched, while still letting RequireJS own the script request so
+     * Paddle.js's anonymous define() is attributed correctly.
      *
      * @returns {Promise} Resolves with the Paddle global.
      */
@@ -47,11 +57,29 @@ define([], function () {
                 return;
             }
 
+            if (!window.requirejs || typeof window.requirejs.config !== 'function') {
+                reject(new Error('RequireJS is not available.'));
+                return;
+            }
+
             var paths = {};
             paths[PADDLE_MODULE] = PADDLE_URL;
-            window.requirejs.config({paths: paths});
 
-            window.require([PADDLE_MODULE], function (paddle) {
+            // requirejs.config() returns the require function bound to the
+            // named context. Everything below goes through that function, so
+            // the default context is neither read nor written.
+            var paddleRequire = window.requirejs.config({
+                context: PADDLE_CONTEXT,
+                paths: paths,
+                waitSeconds: 30
+            });
+
+            if (typeof paddleRequire !== 'function') {
+                reject(new Error('Could not create an isolated RequireJS context for Paddle.js.'));
+                return;
+            }
+
+            paddleRequire([PADDLE_MODULE], function (paddle) {
                 resolve(window.Paddle || paddle);
             }, reject);
         });

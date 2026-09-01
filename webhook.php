@@ -46,6 +46,9 @@ require_once(__DIR__ . '/../../../config.php');
 use paygw_paddle\webhook_handler;
 
 $rawbody = file_get_contents('php://input');
+// Moodle has no wrapper for reading an arbitrary request header, so $_SERVER
+// is the only portable way to get Paddle's signature. The value is treated as
+// untrusted: it is parsed defensively and used only for HMAC comparison.
 $signatureheader = $_SERVER['HTTP_PADDLE_SIGNATURE'] ?? '';
 
 header('Content-Type: application/json');
