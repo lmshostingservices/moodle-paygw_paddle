@@ -1,5 +1,28 @@
 # Changelog
 
+## [v1.0.38] - 2026-09-02
+
+No settings or database schema changes. Both changes are required to pass
+Moodle Plugin CI; neither alters payment behaviour.
+
+### Fixed
+
+- **Mustache Lint: invalid `autocomplete` value on the address field.** The
+  address line in `templates/billing_form.mustache` used
+  `autocomplete="street-address"`. That autofill token is defined for multiline
+  controls only, so HTML validation rejects it on a single-line `<input>`. The
+  field now uses `autocomplete="address-line1"`, which is the correct token for
+  a single address line and matches the field's own label. Browser autofill
+  behaviour is unchanged in practice.
+- **PHPUnit: unasserted `debugging()` call in the refund test.**
+  `webhook_handler_test::test_approved_refund_marks_the_transaction_refunded`
+  builds a transaction whose item id has no payable behind it, so
+  `get_refund_action()` correctly falls back to the site default and reports
+  that through `debugging()`. Moodle's test runner fails any test that emits
+  debugging output without asserting it. The test now asserts the call. No
+  change to `webhook_handler`: the fallback and its diagnostic are the intended
+  behaviour.
+
 ## [v1.0.37] - 2026-09-01
 
 No settings or database schema changes.

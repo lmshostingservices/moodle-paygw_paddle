@@ -198,6 +198,11 @@ final class webhook_handler_test extends \advanced_testcase {
         ];
         webhook_handler::process('adjustment.created', $adjustment, $claimed);
 
+        // The fixture transaction points at an item id that has no payable, so
+        // the refund action falls back to the site default and reports that in
+        // developer debugging. That fallback is the behaviour under test here.
+        $this->assertDebuggingCalled();
+
         $stored = $DB->get_record('paygw_paddle_transactions', ['paddle_transaction_id' => 'txn_07']);
 
         $this->assertEquals('refunded', $stored->status);

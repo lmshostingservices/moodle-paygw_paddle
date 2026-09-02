@@ -82,5 +82,10 @@ function xmldb_paygw_paddle_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026090102, 'paygw', 'paddle');
     }
 
+    // 1.0.38. No schema changes: a template attribute and a unit test only.
+    if ($oldversion < 2026090200) {
+        upgrade_plugin_savepoint(true, 2026090200, 'paygw', 'paddle');
+    }
+
     return true;
 }
