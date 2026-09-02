@@ -30,7 +30,7 @@
  * @copyright  2026 AI Grader
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-define([], function () {
+define([], function() {
     return {
         /**
          * Send the payer to the Paddle billing details page.
@@ -40,12 +40,12 @@ define([], function () {
          * @param {Number} itemId Moodle item id.
          * @returns {Promise} A promise that never settles; the page navigates away.
          */
-        process: function (component, paymentArea, itemId) {
+        process: function(component, paymentArea, itemId) {
             window.location.href = M.cfg.wwwroot + '/payment/gateway/paddle/pay.php' +
                 '?component=' + encodeURIComponent(component) +
                 '&paymentarea=' + encodeURIComponent(paymentArea) +
                 '&itemid=' + encodeURIComponent(itemId);
-            return new Promise(function () {
+            return new Promise(function() {
                 return;
             });
         }

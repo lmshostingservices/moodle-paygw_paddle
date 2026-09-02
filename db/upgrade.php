@@ -77,5 +77,10 @@ function xmldb_paygw_paddle_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026090101, 'paygw', 'paddle');
     }
 
+    // 1.0.37. No schema changes: JavaScript spacing only.
+    if ($oldversion < 2026090102) {
+        upgrade_plugin_savepoint(true, 2026090102, 'paygw', 'paddle');
+    }
+
     return true;
 }

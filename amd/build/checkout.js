@@ -33,7 +33,7 @@
  * @copyright  2026 AI Grader
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-define([], function () {
+define([], function() {
 
     var PADDLE_MODULE = 'paygw_paddle_paddlejs';
     var PADDLE_URL = 'https://cdn.paddle.com/paddle/v2/paddle';
@@ -50,8 +50,8 @@ define([], function () {
      *
      * @returns {Promise} Resolves with the Paddle global.
      */
-    var loadPaddle = function () {
-        return new Promise(function (resolve, reject) {
+    var loadPaddle = function() {
+        return new Promise(function(resolve, reject) {
             if (window.Paddle) {
                 resolve(window.Paddle);
                 return;
@@ -79,7 +79,7 @@ define([], function () {
                 return;
             }
 
-            paddleRequire([PADDLE_MODULE], function (paddle) {
+            paddleRequire([PADDLE_MODULE], function(paddle) {
                 resolve(window.Paddle || paddle);
             }, reject);
         });
@@ -96,7 +96,7 @@ define([], function () {
      * @param {Object} data Customer data supplied by the server.
      * @returns {Object|null} The customer object, or null when there is nothing to send.
      */
-    var buildCustomer = function (data) {
+    var buildCustomer = function(data) {
         if (!data) {
             return null;
         }
@@ -127,7 +127,7 @@ define([], function () {
      * @param {String} fallback The transaction id we already know.
      * @returns {String} A transaction id.
      */
-    var transactionIdFromEvent = function (event, fallback) {
+    var transactionIdFromEvent = function(event, fallback) {
         var data = (event && event.data) || {};
         var transaction = data.transaction || {};
         return data.transaction_id || transaction.id || data.id || fallback || '';
@@ -146,10 +146,10 @@ define([], function () {
          * @param {String} config.failureMessage Message to show if loading fails.
          * @returns {void}
          */
-        init: function (config) {
+        init: function(config) {
             var statusElement = document.querySelector('[data-region="paddle-checkout-status"]');
 
-            var showFailure = function (error) {
+            var showFailure = function(error) {
                 window.console.error('paygw_paddle: ' + (error && error.message ? error.message : error));
                 if (statusElement) {
                     statusElement.textContent = config.failureMessage;
@@ -173,14 +173,14 @@ define([], function () {
                 window.console.warn('paygw_paddle: could not rewrite the checkout URL.');
             }
 
-            loadPaddle().then(function (Paddle) {
+            loadPaddle().then(function(Paddle) {
                 if (config.environment === 'sandbox') {
                     Paddle.Environment.set('sandbox');
                 }
 
                 Paddle.Initialize({
                     token: config.token,
-                    eventCallback: function (event) {
+                    eventCallback: function(event) {
                         var name = event && (event.name || event.type);
                         if (name !== 'checkout.completed' && name !== 'checkout.success') {
                             return;

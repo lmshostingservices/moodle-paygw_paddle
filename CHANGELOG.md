@@ -1,5 +1,28 @@
 # Changelog
 
+## [v1.0.37] - 2026-09-01
+
+No settings or database schema changes.
+
+### Fixed
+
+- **Regression from 1.0.33: `Exception - Class "curl" not found` when starting a
+  payment.** `paddle_helper` uses Moodle's `\curl` wrapper, which is defined in
+  `lib/filelib.php` — a core library that is not autoloaded. Up to 1.0.32,
+  `pay.php` and `process.php` included `course/lib.php`, which pulled
+  `filelib.php` in as a side effect. The 1.0.33 rewrite removed that include as
+  unused, and with it the only thing loading the `curl` class, so any site whose
+  request had not otherwise loaded `filelib.php` hit a fatal error at checkout.
+  `classes/paddle_helper.php` now requires `filelib.php` explicitly, which is
+  where the dependency actually belongs.
+- Anonymous functions in `amd/src` use `function(` without a space, matching
+  Moodle's JavaScript style (`space-before-function-paren: never`) and the
+  release pipeline's `amd_function_space` check. Release 1.0.34 changed these to
+  `function (` by applying the PHP closure rule to JavaScript; PHP and JavaScript
+  differ here, and the JavaScript spelling was wrong from 1.0.34 to 1.0.36.
+  Affects 16 lines across `checkout.js`, `gateways_modal.js` and
+  `poll_status.js`. AMD build artifacts regenerated to match.
+
 ## [v1.0.36] - 2026-09-01
 
 Version reissue. The code is identical to 1.0.35, which was withdrawn from

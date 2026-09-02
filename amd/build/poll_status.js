@@ -23,7 +23,7 @@
  * @copyright  2026 AI Grader
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-define([], function () {
+define([], function() {
     return {
         /**
          * Reload the status page once, after a delay.
@@ -32,8 +32,8 @@ define([], function () {
          * @param {Number} delay How long to wait, in milliseconds.
          * @returns {void}
          */
-        init: function (nextUrl, delay) {
-            window.setTimeout(function () {
+        init: function(nextUrl, delay) {
+            window.setTimeout(function() {
                 window.location.assign(nextUrl);
             }, delay);
         }
