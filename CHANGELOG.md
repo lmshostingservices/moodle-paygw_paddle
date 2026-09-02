@@ -1,5 +1,39 @@
 # Changelog
 
+## [v1.0.39] - 2026-09-02
+
+Coding style only. No settings, database schema, language string text or
+payment behaviour changes. Every change here clears a Moodle Code Checker or
+Grunt finding that the release workflow was hiding behind `continue-on-error`,
+and that Moodle Marketplace runs and publishes on the plugin listing.
+
+### Fixed
+
+- **`classes/paddle_helper.php`: side effect at file scope.** Release 1.0.37
+  put `global $CFG; require_once($CFG->libdir . '/filelib.php');` at the top of
+  the file to fix the `Class "curl" not found` regression. A namespaced class
+  file is not allowed side effects at file scope
+  (`moodle.Files.MoodleInternal`). The `require_once` now sits inside
+  `api_call()`, the one method that constructs `\curl`, which is where the
+  dependency belongs. The 1.0.37 fix still holds.
+- **Multi-line `if` conditions reformatted** in `classes/paddle_helper.php`,
+  `classes/webhook_handler.php` and `classes/form/pricemap_form.php`: first
+  expression on the line after the opening parenthesis, closing parenthesis on
+  its own line.
+- **`classes/privacy/provider.php`: interface order.** The `implements` list is
+  now in the order `Universal.OOStructures.AlphabeticExtendsImplements`
+  expects.
+- **`db/upgrade.php`: removed the `MOODLE_INTERNAL` guard.** The file declares a
+  function and has no side effects, so the check is flagged as unnecessary.
+- **`lang/en/paygw_paddle.php`: strings sorted.** All 156 keys are now in the
+  byte order `moodle.Files.LangFilesOrdering` requires, and the topic section
+  comments have been removed — any comment between strings raises
+  "Unexpected comment found" and stops the checker's own auto-fixer. No string
+  key or value changed; only their order.
+- **`amd/src/checkout.js`: comment capitalisation** on the RequireJS context
+  comment (ESLint `capitalized-comments`). AMD build artefacts regenerated;
+  the minified output is byte-identical, only the source map changed.
+
 ## [v1.0.38] - 2026-09-02
 
 No settings or database schema changes. Both changes are required to pass

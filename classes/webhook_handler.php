@@ -324,10 +324,12 @@ class webhook_handler {
         $DB->update_record('paygw_paddle_transactions', $txnrec);
 
         $refundaction = self::get_refund_action($txnrec);
-        if ($refundaction === 'unenrol'
-                && $txnrec->component === 'enrol_fee'
-                && $txnrec->paymentarea === 'fee'
-                && $txnrec->userid > 0) {
+        if (
+            $refundaction === 'unenrol'
+            && $txnrec->component === 'enrol_fee'
+            && $txnrec->paymentarea === 'fee'
+            && $txnrec->userid > 0
+        ) {
             $enrolinstance = $DB->get_record('enrol', ['id' => $txnrec->itemid]);
             if ($enrolinstance) {
                 $plugin = enrol_get_plugin($enrolinstance->enrol);

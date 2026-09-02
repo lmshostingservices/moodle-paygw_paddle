@@ -98,8 +98,10 @@ class pricemap_form extends \moodleform {
         $errors = parent::validation($data, $files);
 
         $currency = strtoupper(trim($data['currency'] ?? ''));
-        if (strlen($currency) !== 3
-                || !in_array($currency, \paygw_paddle\gateway::get_supported_currencies(), true)) {
+        if (
+            strlen($currency) !== 3
+            || !in_array($currency, \paygw_paddle\gateway::get_supported_currencies(), true)
+        ) {
             $errors['currency'] = get_string('invalidcurrency', 'paygw_paddle');
         }
 

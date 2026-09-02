@@ -25,12 +25,6 @@
 
 namespace paygw_paddle;
 
-// Moodle's curl wrapper is defined in a core library that is not autoloaded, so
-// it has to be required explicitly. Relying on another include to have pulled
-// filelib.php in already is what produced "Class curl not found" in 1.0.33.
-global $CFG;
-require_once($CFG->libdir . '/filelib.php');
-
 /**
  * Thin client for the Paddle Billing API, plus webhook signature verification.
  *
@@ -340,8 +334,10 @@ class paddle_helper {
         $existing = null;
         $wanted = \core_text::strtolower($email);
         foreach ($list['data'] ?? [] as $candidate) {
-            if (isset($candidate['email'])
-                    && \core_text::strtolower(trim($candidate['email'])) === $wanted) {
+            if (
+                isset($candidate['email'])
+                && \core_text::strtolower(trim($candidate['email'])) === $wanted
+            ) {
                 $existing = $candidate;
                 break;
             }
@@ -554,6 +550,14 @@ class paddle_helper {
      * @throws \moodle_exception On a transport error or a non 2xx response.
      */
     protected function api_call(string $method, string $endpoint, ?array $data = null): array {
+        global $CFG;
+
+        // Moodle's curl wrapper lives in a core library that is not autoloaded,
+        // so it has to be required where it is used. Relying on some other
+        // include to have pulled filelib.php in already is what produced
+        // "Class curl not found" in 1.0.33.
+        require_once($CFG->libdir . '/filelib.php');
+
         $url = $this->baseurl . $endpoint;
 
         $curl = new \curl();

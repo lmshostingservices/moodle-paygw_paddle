@@ -26,8 +26,6 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Run the paygw_paddle upgrade steps.
  *
@@ -85,6 +83,11 @@ function xmldb_paygw_paddle_upgrade($oldversion) {
     // 1.0.38. No schema changes: a template attribute and a unit test only.
     if ($oldversion < 2026090200) {
         upgrade_plugin_savepoint(true, 2026090200, 'paygw', 'paddle');
+    }
+
+    // 1.0.39. No schema changes: coding style only.
+    if ($oldversion < 2026090201) {
+        upgrade_plugin_savepoint(true, 2026090201, 'paygw', 'paddle');
     }
 
     return true;

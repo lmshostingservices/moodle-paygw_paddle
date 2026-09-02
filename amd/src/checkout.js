@@ -65,8 +65,8 @@ define([], function() {
             var paths = {};
             paths[PADDLE_MODULE] = PADDLE_URL;
 
-            // requirejs.config() returns the require function bound to the
-            // named context. Everything below goes through that function, so
+            // The requirejs.config() call returns the require function bound
+            // to the named context. Everything below goes through that function, so
             // the default context is neither read nor written.
             var paddleRequire = window.requirejs.config({
                 context: PADDLE_CONTEXT,
