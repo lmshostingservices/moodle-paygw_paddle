@@ -76,7 +76,11 @@ if ($transactionid !== '') {
         ]
     );
 }
-if (!$confirmed) {
+// Fall back to the core payment record only when this learner has no Paddle
+// transaction of their own for this item that is still in flight. Without that
+// condition a learner who paid for the same item before would be shown a
+// success page for an attempt that has just failed.
+if (!$confirmed && $transactionid === '') {
     $confirmed = $DB->record_exists(
         'payments',
         [

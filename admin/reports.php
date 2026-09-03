@@ -32,6 +32,14 @@ $statusfilter = optional_param('status', '', PARAM_ALPHA);
 $tab = optional_param('tab', 'transactions', PARAM_ALPHA);
 $download = optional_param('download', '', PARAM_ALPHA);
 
+// The download parameter names a \dataformat_<name>\writer class, so only
+// accept one that is actually installed. PARAM_ALPHA already rules out
+// traversal; this turns an unknown format into no download rather than a
+// class-not-found error.
+if ($download !== '' && !\core_component::get_plugin_directory('dataformat', $download)) {
+    $download = '';
+}
+
 admin_externalpage_setup('paygw_paddle_reports');
 
 $perpage = 50;
@@ -347,6 +355,7 @@ if ($tab === 'transactions') {
             get_string('transactionid', 'paygw_paddle'),
             get_string('eventtype', 'paygw_paddle'),
             get_string('eventresult', 'paygw_paddle'),
+            get_string('eventdetails', 'paygw_paddle'),
             get_string('transactiondate', 'paygw_paddle'),
         ];
         $table->attributes['class'] = 'generaltable';
@@ -361,6 +370,7 @@ if ($tab === 'transactions') {
                     s(paygw_paddle_status_label('result', $event->result)),
                     ['class' => paygw_paddle_status_badge_class($event->result)]
                 ),
+                s($event->error_message ?? ''),
                 userdate($event->timecreated),
             ];
         }

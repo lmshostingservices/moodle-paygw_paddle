@@ -105,10 +105,17 @@ class pricemap_form extends \moodleform {
             $errors['currency'] = get_string('invalidcurrency', 'paygw_paddle');
         }
 
-        if (empty($data['id'])) {
-            if ($DB->record_exists('paygw_paddle_prices', ['courseid' => $data['courseid']])) {
-                $errors['courseid'] = get_string('pricemapduplicate', 'paygw_paddle');
-            }
+        // One mapping per course, on create and on edit alike. Wrapping this in
+        // a create-only check let an edit move a mapping onto a course that
+        // already had one, leaving two active rows for it.
+        $params = ['courseid' => $data['courseid']];
+        $select = 'courseid = :courseid';
+        if (!empty($data['id'])) {
+            $select .= ' AND id <> :id';
+            $params['id'] = $data['id'];
+        }
+        if ($DB->record_exists_select('paygw_paddle_prices', $select, $params)) {
+            $errors['courseid'] = get_string('pricemapduplicate', 'paygw_paddle');
         }
 
         return $errors;

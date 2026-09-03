@@ -1,5 +1,88 @@
 # Changelog
 
+## [v1.0.41] - 2026-09-03
+
+Pre-submission hardening ahead of the Moodle Marketplace resubmission
+(MMRT-168). One schema change: two columns that reference core tables are now
+declared as foreign keys.
+
+### Fixed
+
+- **A refused payment could show the payer a success page.** 1.0.40 wrote
+  `status = 'completed'` on the local transaction row before checking that the
+  amount covered the cost. `process.php` reads that status as proof of payment,
+  so an underpaid or wrong-currency notification produced a "Payment successful.
+  You have been enrolled" page for a learner who was never enrolled, and left a
+  `completed` row in the admin report. The amount check now runs before the row
+  is written, and a refused payment is recorded as `failed`.
+- **Refused webhook events sat in a retry state that never retried.** A
+  permanent refusal - a mismatched `custom_data`, or an amount that does not
+  cover the cost - was marked unprocessed, the state that means "Paddle should
+  send this again", while `webhook.php` answered `200 OK` so Paddle never did.
+  `mark()` takes a `$retry` flag and those two refusals now close the event
+  instead of leaving it stuck.
+- **Editing a price mapping could create two mappings for one course.** The
+  duplicate check in `pricemap_form` ran only on create, so moving a mapping
+  onto a course that already had one left two active rows, and the price
+  lookup then picked one of them arbitrarily. The check now runs on edit too,
+  excluding the row being edited.
+- **A notification with no currency passed the currency check.** An absent
+  `currency_code` was treated as matching. It now fails.
+- **`process.php` could report success for a failed attempt.** A learner who had
+  paid for the same item before saw a success page for a new attempt that had
+  failed, because the fallback to core's `payments` table was not scoped to the
+  attempt in hand.
+
+### Security
+
+- `checkout.php` only honours a `_ptxn` transaction id from the address bar when
+  it names a transaction the current user actually started.
+- The `download` parameter on the transactions report is checked against the
+  installed dataformat plugins.
+
+### Changed
+
+- `paygw_paddle_transactions.userid` and `paygw_paddle_prices.courseid` are
+  declared as foreign keys to `user` and `course`. The single column indexes
+  those keys replace have been dropped; the upgrade step does this in place.
+- The webhook events report shows a Details column carrying the reason an event
+  failed. The README already told administrators to look for it.
+- `amd/src/checkout.js` logs through `core/log` rather than `window.console`,
+  which is what the ESLint `no-console` rule is there to require.
+- The session key holding billing details between `pay.php` and `checkout.php`
+  is namespaced: `$SESSION->paygw_paddle_customer`.
+- README: the stated PHP requirement now matches what Moodle 4.1 requires.
+
+### Added
+
+- `tests/privacy/provider_test.php`, covering the provider end to end:
+  context and userlist discovery, export, per-user and per-userlist deletion,
+  whole-context purge, and that a non system context is left alone. The plugin
+  anonymises rather than deletes, so the tests assert that the financial rows
+  survive and that nothing identifying survives with them.
+- Tests for the two webhook ordering fixes above.
+
+### Changed - supported Moodle versions
+
+- **The plugin now declares Moodle 4.4 to 5.2.** `$plugin->requires` moves from
+  `2022112800` (4.1) to `2024042200` (4.4) and `$plugin->supported` from
+  `[401, 500]` to `[404, 502]`, bringing `version.php` into agreement with the
+  Marketplace listing (MMRT-168 item 3). Note that raising `requires` stops the
+  plugin installing on Moodle 4.1, 4.2 and 4.3; those branches are all past
+  their security support end date.
+- README states the version and PHP requirements per branch: 8.1 on Moodle 4.4
+  and 4.5, 8.2 on 5.0 and 5.1, 8.3 on 5.2.
+
+### Known issues
+
+- `amd/build` is not produced by Moodle's own Grunt, so
+  `moodle-plugin-ci grunt` reports the minified files as stale. The shipped
+  build is correct and current for the source in this release; only its
+  provenance differs.
+- The 4.4 to 5.2 range is declared ahead of the continuous integration runs
+  that cover it. Until the widened matrix has run green on every branch, treat
+  4.5 as the only branch with test evidence behind it.
+
 ## [v1.0.40] - 2026-09-03
 
 No settings or database schema changes. Fixes a checkout failure introduced in

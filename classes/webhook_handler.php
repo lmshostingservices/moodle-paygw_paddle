@@ -162,19 +162,30 @@ class webhook_handler {
     /**
      * Record the outcome of processing an event.
      *
+     * An error is left unprocessed so that a later delivery of the same event
+     * is allowed to try again. That is wrong for a refusal the site will never
+     * accept however often Paddle repeats it, so those pass $retry = false and
+     * are closed off instead of sitting in a retry state that never retries.
+     *
      * @param \stdClass $eventrec The event record to update.
      * @param string $result One of the RESULT_* constants.
      * @param string|null $message An optional explanation.
+     * @param bool $retry Whether a later delivery of this event should be tried again.
      * @return void
      */
-    public static function mark(\stdClass $eventrec, string $result, ?string $message = null): void {
+    public static function mark(
+        \stdClass $eventrec,
+        string $result,
+        ?string $message = null,
+        bool $retry = true
+    ): void {
         global $DB;
 
         $DB->update_record(
             'paygw_paddle_events',
             (object) [
                 'id' => $eventrec->id,
-                'processed' => ($result === self::RESULT_ERROR) ? 0 : 1,
+                'processed' => ($result === self::RESULT_ERROR && $retry) ? 0 : 1,
                 'result' => $result,
                 'error_message' => $message === null ? null : \core_text::substr($message, 0, 1000),
             ]
@@ -233,7 +244,8 @@ class webhook_handler {
                 self::mark(
                     $eventrec,
                     self::RESULT_ERROR,
-                    'Notified custom_data does not match the stored transaction for ' . $txnid . '.'
+                    'Notified custom_data does not match the stored transaction for ' . $txnid . '.',
+                    false
                 );
                 return;
             }
@@ -242,8 +254,36 @@ class webhook_handler {
         $currency = (string) $txnrec->currency;
         $totals = $data['details']['totals'] ?? [];
 
-        // Update the local record before delivering, so the return page can see
-        // the payment as confirmed even if delivery is slow.
+        $payable = payment_helper::get_payable($component, $paymentarea, $itemid);
+        $cost = payment_helper::get_rounded_cost(
+            $payable->get_amount(),
+            $payable->get_currency(),
+            payment_helper::get_gateway_surcharge('paddle')
+        );
+
+        // The amount actually paid has to cover what this item costs. This runs
+        // before the row is marked complete, because process.php reads that row
+        // as proof of payment: writing 'completed' first would show the payer a
+        // success page for a payment that is then refused.
+        //
+        // Paddle is Merchant of Record and adds tax on top of the price the item
+        // was created with, so the subtotal is the figure that corresponds to
+        // the Moodle cost, not the grand total.
+        if (!self::amount_covers_cost($totals, $payable->get_currency(), $cost)) {
+            $txnrec->status = 'failed';
+            $txnrec->timemodified = time();
+            $DB->update_record('paygw_paddle_transactions', $txnrec);
+            self::mark(
+                $eventrec,
+                self::RESULT_ERROR,
+                'Notified amount does not cover the expected cost for ' . $txnid . '.',
+                false
+            );
+            return;
+        }
+
+        // The payment stands. Record it before delivering, so the return page
+        // can see it as confirmed even if delivery is slow.
         $txnrec->status = 'completed';
         $txnrec->tax = isset($totals['tax'])
             ? paddle_helper::amount_from_minor_unit($totals['tax'], $currency)
@@ -269,26 +309,6 @@ class webhook_handler {
         );
         if ($alreadypaid) {
             self::mark($eventrec, self::RESULT_SKIPPED, 'Payment already recorded for this item and user.');
-            return;
-        }
-
-        $payable = payment_helper::get_payable($component, $paymentarea, $itemid);
-        $cost = payment_helper::get_rounded_cost(
-            $payable->get_amount(),
-            $payable->get_currency(),
-            payment_helper::get_gateway_surcharge('paddle')
-        );
-
-        // The amount actually paid has to cover what this item costs before
-        // delivering it. Paddle is Merchant of Record, so it adds tax on top of
-        // the price the item was created with; the subtotal is therefore the
-        // figure that corresponds to the Moodle cost, not the grand total.
-        if (!self::amount_covers_cost($totals, $payable->get_currency(), $cost)) {
-            self::mark(
-                $eventrec,
-                self::RESULT_ERROR,
-                'Notified amount does not cover the expected cost for ' . $txnid . '.'
-            );
             return;
         }
 
@@ -438,8 +458,10 @@ class webhook_handler {
      * @return bool True when the payment covers the cost.
      */
     protected static function amount_covers_cost(array $totals, string $currency, float $cost): bool {
-        $notifiedcurrency = (string) ($totals['currency_code'] ?? $currency);
-        if (strtoupper($notifiedcurrency) !== strtoupper($currency)) {
+        if (empty($totals['currency_code'])) {
+            return false;
+        }
+        if (strtoupper((string) $totals['currency_code']) !== strtoupper($currency)) {
             return false;
         }
 

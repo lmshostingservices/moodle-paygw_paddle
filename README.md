@@ -11,8 +11,11 @@ paid learner unenrolled.
 
 ## Requirements
 
-- Moodle 4.1 LTS or later (tested up to Moodle 5.0)
-- PHP 8.0 or later
+- Moodle 4.4 to 5.2. Every release is tested by continuous integration against
+  4.4, 4.5 LTS, 5.0, 5.1 and 5.2, on PostgreSQL and MariaDB
+- PHP 8.1 or later on Moodle 4.4 and 4.5, 8.2 or later on Moodle 5.0 and 5.1,
+  8.3 or later on Moodle 5.2 - in each case whatever that Moodle release itself
+  requires
 - Outbound HTTPS access from the web server to `api.paddle.com`
   (or `sandbox-api.paddle.com`)
 - Learners' browsers must be able to load `https://cdn.paddle.com/paddle/v2/paddle.js`,

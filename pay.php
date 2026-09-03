@@ -119,7 +119,7 @@ if (optional_param('submitted', 0, PARAM_BOOL) && confirm_sesskey()) {
         // Hand the checkout page what it needs to open the Paddle overlay
         // against the customer record just created, so the invoice carries the
         // payer's name rather than only what Paddle's own form collects.
-        $SESSION->paddle_customer = (object) [
+        $SESSION->paygw_paddle_customer = (object) [
             'txnid' => $txnid,
             'customerid' => (string) ($customerid ?? ''),
             'email' => (string) ($USER->email ?? ''),

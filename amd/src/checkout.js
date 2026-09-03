@@ -33,7 +33,7 @@
  * @copyright  2026 AI Grader
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-define([], function() {
+define(['core/log'], function(Log) {
 
     var PADDLE_MODULE = 'paygw_paddle_paddlejs';
     var PADDLE_URL = 'https://cdn.paddle.com/paddle/v2/paddle';
@@ -160,7 +160,7 @@ define([], function() {
             var statusElement = document.querySelector('[data-region="paddle-checkout-status"]');
 
             var showFailure = function(error) {
-                window.console.error('paygw_paddle: ' + (error && error.message ? error.message : error));
+                Log.error('paygw_paddle: ' + (error && error.message ? error.message : error));
                 if (statusElement) {
                     statusElement.textContent = config.failureMessage;
                 }
@@ -180,7 +180,7 @@ define([], function() {
                 }
             } catch (error) {
                 // Not being able to tidy the URL is not worth failing over.
-                window.console.warn('paygw_paddle: could not rewrite the checkout URL.');
+                Log.warning('paygw_paddle: could not rewrite the checkout URL.');
             }
 
             loadPaddle().then(function(Paddle) {

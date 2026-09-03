@@ -33,6 +33,8 @@
  * @return bool
  */
 function xmldb_paygw_paddle_upgrade($oldversion) {
+    global $DB;
+
 
     // Savepoints up to 1.0.32. None of these changed the database schema;
     // they exist so that sites upgrading from an older release follow a
@@ -93,6 +95,30 @@ function xmldb_paygw_paddle_upgrade($oldversion) {
     // 1.0.40. No schema changes: checkout fix and webhook hardening.
     if ($oldversion < 2026090300) {
         upgrade_plugin_savepoint(true, 2026090300, 'paygw', 'paddle');
+    }
+
+    // 1.0.41. Declare the two columns that reference core tables as foreign
+    // keys, and drop the single column indexes those keys replace.
+    if ($oldversion < 2026090400) {
+        $dbman = $DB->get_manager();
+
+        $table = new xmldb_table('paygw_paddle_transactions');
+        $index = new xmldb_index('idx_userid', XMLDB_INDEX_NOTUNIQUE, ['userid']);
+        if ($dbman->index_exists($table, $index)) {
+            $dbman->drop_index($table, $index);
+        }
+        $key = new xmldb_key('userid', XMLDB_KEY_FOREIGN, ['userid'], 'user', ['id']);
+        $dbman->add_key($table, $key);
+
+        $table = new xmldb_table('paygw_paddle_prices');
+        $index = new xmldb_index('idx_courseid', XMLDB_INDEX_NOTUNIQUE, ['courseid']);
+        if ($dbman->index_exists($table, $index)) {
+            $dbman->drop_index($table, $index);
+        }
+        $key = new xmldb_key('courseid', XMLDB_KEY_FOREIGN, ['courseid'], 'course', ['id']);
+        $dbman->add_key($table, $key);
+
+        upgrade_plugin_savepoint(true, 2026090400, 'paygw', 'paddle');
     }
 
     return true;

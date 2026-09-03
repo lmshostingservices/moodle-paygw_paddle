@@ -13,7 +13,6 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
-
 /**
  * Language strings for paygw_paddle.
  *
@@ -57,6 +56,7 @@ $string['environment'] = 'Environment';
 $string['environment_help'] = 'Sandbox connects to Paddle\'s test environment, where no real payments are processed. Switch to Live only once you have completed a successful sandbox purchase.';
 $string['environment_live'] = 'Live';
 $string['environment_sandbox'] = 'Sandbox';
+$string['eventdetails'] = 'Details';
 $string['eventid'] = 'Event ID';
 $string['eventresult'] = 'Result';
 $string['eventtype'] = 'Event type';

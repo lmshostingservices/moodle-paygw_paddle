@@ -45,15 +45,26 @@ $paymentarea = optional_param('paymentarea', '', PARAM_ALPHANUMEXT);
 $itemid = optional_param('itemid', 0, PARAM_INT);
 $txnid = optional_param('_ptxn', '', PARAM_ALPHANUMEXT);
 
+// _ptxn arrives in the address bar, so it is only honoured when it names a
+// transaction this user actually started. Paying for somebody else's
+// transaction would achieve nothing now that delivery is driven by the stored
+// row, but there is no reason to open the overlay for it either.
+if ($txnid !== '' && !$DB->record_exists(
+    'paygw_paddle_transactions',
+    ['paddle_transaction_id' => $txnid, 'userid' => $USER->id]
+)) {
+    $txnid = '';
+}
+
 // Billing details stashed by pay.php. Cleared straight away so a refresh does
 // not reuse them.
 $customerdata = null;
-if (!empty($SESSION->paddle_customer)) {
-    $customerdata = $SESSION->paddle_customer;
+if (!empty($SESSION->paygw_paddle_customer)) {
+    $customerdata = $SESSION->paygw_paddle_customer;
     if (empty($txnid) && !empty($customerdata->txnid)) {
         $txnid = $customerdata->txnid;
     }
-    unset($SESSION->paddle_customer);
+    unset($SESSION->paygw_paddle_customer);
 }
 
 $PAGE->set_url(new moodle_url('/payment/gateway/paddle/checkout.php'));

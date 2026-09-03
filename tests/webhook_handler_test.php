@@ -313,4 +313,97 @@ final class webhook_handler_test extends \advanced_testcase {
         $this->assertTrue($method->invoke(null, ['subtotal' => 1000], 'JPY', 1000.00));
         $this->assertFalse($method->invoke(null, ['subtotal' => 999], 'JPY', 1000.00));
     }
+    /**
+     * A short payment leaves the transaction unpaid rather than complete.
+     *
+     * process.php reads a status of 'completed' as proof of payment, so the
+     * row must not be written before the amount has been accepted.
+     *
+     * @return void
+     */
+    public function test_short_payment_does_not_mark_the_transaction_complete(): void {
+        global $DB;
+        $this->resetAfterTest();
+
+        $user = $this->getDataGenerator()->create_user();
+        $course = $this->getDataGenerator()->create_course();
+        $account = $this->getDataGenerator()->get_plugin_generator('core_payment')->create_payment_account();
+        $feeplugin = enrol_get_plugin('fee');
+        $instanceid = $feeplugin->add_instance($course, [
+            'customint1' => $account->get('id'),
+            'cost' => 10,
+            'currency' => 'AUD',
+            'roleid' => 5,
+        ]);
+
+        $transaction = (object) [
+            'component' => 'enrol_fee',
+            'paymentarea' => 'fee',
+            'itemid' => $instanceid,
+            'paddle_transaction_id' => 'txn_10',
+            'userid' => $user->id,
+            'amount' => 10.00,
+            'currency' => 'AUD',
+            'tax' => 0,
+            'status' => 'pending',
+            'timecreated' => time(),
+            'timemodified' => time(),
+        ];
+        $DB->insert_record('paygw_paddle_transactions', $transaction);
+
+        $claimed = webhook_handler::claim_event('evt_10', 'transaction.completed', 'txn_10', '{}');
+        $data = [
+            'id' => 'txn_10',
+            // One cent short of the ten dollar cost.
+            'details' => ['totals' => ['subtotal' => 999, 'tax' => 0, 'currency_code' => 'AUD']],
+        ];
+        webhook_handler::process('transaction.completed', $data, $claimed);
+
+        $stored = $DB->get_record('paygw_paddle_transactions', ['paddle_transaction_id' => 'txn_10']);
+        $event = $DB->get_record('paygw_paddle_events', ['paddle_event_id' => 'evt_10']);
+
+        $this->assertNotEquals('completed', $stored->status);
+        $this->assertEquals('failed', $stored->status);
+        $this->assertEquals(webhook_handler::RESULT_ERROR, $event->result);
+        $this->assertEquals(0, $DB->count_records('payments', ['gateway' => 'paddle']));
+
+        // A refusal the site will never accept is closed off rather than left
+        // waiting for a retry that Paddle was told it did not need.
+        $this->assertEquals(1, $event->processed);
+    }
+
+    /**
+     * A permanent refusal is not left in the retry state.
+     *
+     * @return void
+     */
+    public function test_custom_data_mismatch_is_not_left_awaiting_retry(): void {
+        global $DB;
+        $this->resetAfterTest();
+
+        $DB->insert_record('paygw_paddle_transactions', (object) [
+            'component' => 'enrol_fee',
+            'paymentarea' => 'fee',
+            'itemid' => 42,
+            'paddle_transaction_id' => 'txn_11',
+            'userid' => 7,
+            'amount' => 10.00,
+            'currency' => 'AUD',
+            'tax' => 0,
+            'status' => 'pending',
+            'timecreated' => time(),
+            'timemodified' => time(),
+        ]);
+
+        $claimed = webhook_handler::claim_event('evt_11', 'transaction.completed', 'txn_11', '{}');
+        webhook_handler::process('transaction.completed', [
+            'id' => 'txn_11',
+            'custom_data' => ['userid' => 999],
+        ], $claimed);
+
+        $event = $DB->get_record('paygw_paddle_events', ['paddle_event_id' => 'evt_11']);
+
+        $this->assertEquals(webhook_handler::RESULT_ERROR, $event->result);
+        $this->assertEquals(1, $event->processed);
+    }
 }
