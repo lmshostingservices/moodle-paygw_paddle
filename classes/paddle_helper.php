@@ -486,6 +486,24 @@ class paddle_helper {
     }
 
     /**
+     * Convert an amount out of the minor unit Paddle reports.
+     *
+     * The inverse of amount_to_minor_unit(). Dividing every amount by 100
+     * would overstate zero decimal currencies such as JPY by a factor of a
+     * hundred.
+     *
+     * @param int|string|float $minor The amount in the currency's smallest unit.
+     * @param string $currency The ISO 4217 currency code.
+     * @return float The amount, for example 9.99.
+     */
+    public static function amount_from_minor_unit($minor, string $currency): float {
+        if (in_array(strtoupper($currency), self::ZERO_DECIMAL_CURRENCIES, true)) {
+            return (float) $minor;
+        }
+        return ((float) $minor) / 100;
+    }
+
+    /**
      * Verify a Paddle webhook signature.
      *
      * Paddle sends a header of the form ts=<timestamp>;h1=<hmac>, where the

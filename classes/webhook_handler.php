@@ -192,31 +192,68 @@ class webhook_handler {
         global $DB;
 
         $txnid = $data['id'] ?? '';
-        $customdata = $data['custom_data'] ?? [];
+        if ($txnid === '') {
+            throw new \moodle_exception('webhook_missing_txnid', 'paygw_paddle');
+        }
 
-        $component = $customdata['component'] ?? '';
-        $paymentarea = $customdata['paymentarea'] ?? '';
-        $itemid = (int) ($customdata['itemid'] ?? 0);
-        $userid = (int) ($customdata['userid'] ?? 0);
+        // What is delivered is decided by the local row that pay.php wrote when
+        // the payer started, never by metadata Paddle hands back. custom_data
+        // travels through the payer's browser and through Paddle, so treating
+        // it as authoritative would let a caller who can forge a notification
+        // choose the component, item and recipient of an enrolment.
+        $txnrec = $DB->get_record('paygw_paddle_transactions', ['paddle_transaction_id' => $txnid]);
+        if (!$txnrec) {
+            self::mark(
+                $eventrec,
+                self::RESULT_SKIPPED,
+                'No local transaction record for ' . $txnid . '; nothing to deliver.'
+            );
+            return;
+        }
 
-        if (empty($component) || empty($paymentarea) || $itemid <= 0 || $userid <= 0) {
+        $component = (string) $txnrec->component;
+        $paymentarea = (string) $txnrec->paymentarea;
+        $itemid = (int) $txnrec->itemid;
+        $userid = (int) $txnrec->userid;
+
+        if ($component === '' || $paymentarea === '' || $itemid <= 0 || $userid <= 0) {
             throw new \moodle_exception('webhook_missing_metadata', 'paygw_paddle');
         }
 
+        // The custom_data field is not trusted, but it must not contradict the
+        // stored row either. A mismatch means the notification does not describe the
+        // transaction this site created, so nothing is delivered.
+        $customdata = $data['custom_data'] ?? [];
+        if (is_array($customdata) && $customdata !== []) {
+            $mismatch = (isset($customdata['component']) && (string) $customdata['component'] !== $component)
+                || (isset($customdata['paymentarea']) && (string) $customdata['paymentarea'] !== $paymentarea)
+                || (isset($customdata['itemid']) && (int) $customdata['itemid'] !== $itemid)
+                || (isset($customdata['userid']) && (int) $customdata['userid'] !== $userid);
+            if ($mismatch) {
+                self::mark(
+                    $eventrec,
+                    self::RESULT_ERROR,
+                    'Notified custom_data does not match the stored transaction for ' . $txnid . '.'
+                );
+                return;
+            }
+        }
+
+        $currency = (string) $txnrec->currency;
+        $totals = $data['details']['totals'] ?? [];
+
         // Update the local record before delivering, so the return page can see
         // the payment as confirmed even if delivery is slow.
-        $txnrec = $DB->get_record('paygw_paddle_transactions', ['paddle_transaction_id' => $txnid]);
-        if ($txnrec) {
-            $totals = $data['details']['totals'] ?? [];
-            $txnrec->status = 'completed';
-            $txnrec->tax = !empty($totals['tax']) ? ((float) $totals['tax'] / 100) : 0;
-            $txnrec->amount = !empty($totals['grand_total'])
-                ? ((float) $totals['grand_total'] / 100)
-                : $txnrec->amount;
-            $txnrec->paddle_customer_id = $data['customer_id'] ?? $txnrec->paddle_customer_id;
-            $txnrec->timemodified = time();
-            $DB->update_record('paygw_paddle_transactions', $txnrec);
-        }
+        $txnrec->status = 'completed';
+        $txnrec->tax = isset($totals['tax'])
+            ? paddle_helper::amount_from_minor_unit($totals['tax'], $currency)
+            : 0;
+        $txnrec->amount = isset($totals['grand_total'])
+            ? paddle_helper::amount_from_minor_unit($totals['grand_total'], $currency)
+            : $txnrec->amount;
+        $txnrec->paddle_customer_id = $data['customer_id'] ?? $txnrec->paddle_customer_id;
+        $txnrec->timemodified = time();
+        $DB->update_record('paygw_paddle_transactions', $txnrec);
 
         // Second guard against double delivery: if this learner already has a
         // Paddle payment recorded against this item, do not enrol them again.
@@ -241,6 +278,19 @@ class webhook_handler {
             $payable->get_currency(),
             payment_helper::get_gateway_surcharge('paddle')
         );
+
+        // The amount actually paid has to cover what this item costs before
+        // delivering it. Paddle is Merchant of Record, so it adds tax on top of
+        // the price the item was created with; the subtotal is therefore the
+        // figure that corresponds to the Moodle cost, not the grand total.
+        if (!self::amount_covers_cost($totals, $payable->get_currency(), $cost)) {
+            self::mark(
+                $eventrec,
+                self::RESULT_ERROR,
+                'Notified amount does not cover the expected cost for ' . $txnid . '.'
+            );
+            return;
+        }
 
         $paymentid = payment_helper::save_payment(
             $payable->get_account_id(),
@@ -372,5 +422,34 @@ class webhook_handler {
         }
 
         return 'unenrol';
+    }
+
+    /**
+     * Check that a notified Paddle total covers the cost Moodle expects.
+     *
+     * Paddle acts as Merchant of Record and adds tax on top of the item price,
+     * so the subtotal is what corresponds to the Moodle cost. Amounts are
+     * compared in the currency's minor unit to avoid float equality, and the
+     * notified currency must match the one the transaction was created in.
+     *
+     * @param array $totals The details.totals object from the notification.
+     * @param string $currency The currency the payable is priced in.
+     * @param float $cost The rounded cost Moodle expects.
+     * @return bool True when the payment covers the cost.
+     */
+    protected static function amount_covers_cost(array $totals, string $currency, float $cost): bool {
+        $notifiedcurrency = (string) ($totals['currency_code'] ?? $currency);
+        if (strtoupper($notifiedcurrency) !== strtoupper($currency)) {
+            return false;
+        }
+
+        if (!isset($totals['subtotal'])) {
+            return false;
+        }
+
+        $paid = (int) round((float) $totals['subtotal']);
+        $expected = paddle_helper::amount_to_minor_unit($cost, $currency);
+
+        return $paid >= $expected;
     }
 }

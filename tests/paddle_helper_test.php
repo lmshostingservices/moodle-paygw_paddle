@@ -213,4 +213,22 @@ final class paddle_helper_test extends \advanced_testcase {
         $this->assertSame(2999, paddle_helper::amount_to_minor_unit(29.99, 'AUD'));
         $this->assertSame(7010, paddle_helper::amount_to_minor_unit(70.10, 'AUD'));
     }
+
+    /**
+     * Amounts convert back out of the minor unit.
+     *
+     * @return void
+     */
+    public function test_amount_from_minor_unit_is_the_inverse(): void {
+        $this->assertSame(9.99, paddle_helper::amount_from_minor_unit(999, 'AUD'));
+        $this->assertSame(100.0, paddle_helper::amount_from_minor_unit(10000, 'USD'));
+        $this->assertSame(0.0, paddle_helper::amount_from_minor_unit(0, 'EUR'));
+
+        // Zero decimal currencies are reported whole, not in hundredths.
+        $this->assertSame(1500.0, paddle_helper::amount_from_minor_unit(1500, 'JPY'));
+        $this->assertSame(1500.0, paddle_helper::amount_from_minor_unit(1500, 'jpy'));
+
+        // Paddle sends these as strings.
+        $this->assertSame(9.99, paddle_helper::amount_from_minor_unit('999', 'AUD'));
+    }
 }

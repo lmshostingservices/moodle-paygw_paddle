@@ -28,8 +28,8 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'paygw_paddle';
-$plugin->version   = 2026090201;
+$plugin->version   = 2026090300;
 $plugin->requires  = 2022112800;  // Moodle 4.1 LTS.
 $plugin->supported = [401, 500];  // Moodle 4.1 LTS to 5.0.
 $plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = '1.0.39';
+$plugin->release   = '1.0.40';

@@ -1,5 +1,67 @@
 # Changelog
 
+## [v1.0.40] - 2026-09-03
+
+No settings or database schema changes. Fixes a checkout failure introduced in
+1.0.33 and addresses the Moodle Marketplace review MMRT-168.
+
+### Fixed
+
+- **The checkout overlay never opened: `Paddle.Initialize is not a function`.**
+  Paddle.js v2's UMD wrapper assigns `window.Paddle` only when it is loaded as a
+  plain script tag. Loaded through AMD, as it has been since 1.0.33, it returns
+  its export instead - a namespace object of the shape
+  `{Paddle, PaddleBillingV1}` - and never sets the global. `checkout.js`
+  resolved `window.Paddle || paddle`, so with the global unset it resolved the
+  namespace, whose `Initialize` is undefined. It now unwraps
+  `paddle.Paddle`, and rejects with a clear message if the object it ends up
+  with has no `Initialize`, instead of failing further downstream.
+
+  Releases 1.0.33 to 1.0.39 could not open the checkout on any site. The fault
+  was masked until 1.0.37 by the `Class "curl" not found` error, which stopped
+  the page earlier.
+- **Zero decimal currencies were recorded a hundred times too large.** Webhook
+  totals were divided by 100 unconditionally. `paddle_helper` gains
+  `amount_from_minor_unit()`, the inverse of `amount_to_minor_unit()`, which
+  leaves JPY, KRW and the other zero decimal currencies whole.
+
+### Security
+
+- **Order delivery no longer trusts `custom_data` (MMRT-168 item 2).**
+  `webhook_handler::handle_transaction_completed()` took the component, payment
+  area, item id and user id from the `custom_data` Paddle returns. That value
+  travels through the payer's browser, so a forged notification could choose
+  what was delivered and to whom. Those four values are now read from the local
+  `paygw_paddle_transactions` row that `pay.php` wrote when the payer started.
+  A notification with no matching local row is skipped; one whose `custom_data`
+  contradicts the stored row is refused and recorded as an error.
+- **The amount paid is checked before delivery (MMRT-168 item 2).** Delivery
+  now requires the notified subtotal to cover the rounded cost Moodle expects,
+  in the currency the transaction was created in. The subtotal is the figure
+  compared, not the grand total, because Paddle adds tax on top of the item
+  price as Merchant of Record.
+
+### Changed
+
+- **`paygw/paddle:viewreports` declares `RISK_PERSONAL` (MMRT-168 item 4).** The
+  transactions report and its CSV export show each payer's name and email
+  address, so administrators assigning the capability now see that risk.
+
+### Added
+
+- Unit tests for the webhook guards: a completed notification with no local row,
+  one whose `custom_data` names a different learner, the subtotal comparison
+  including the tax, currency and zero decimal cases, and the new
+  `amount_from_minor_unit()` conversion.
+
+### Known issues
+
+- `amd/build` is not produced by Moodle's own Grunt, so `moodle-plugin-ci grunt`
+  reports the minified files as stale. The shipped build is correct and current
+  for the source in this release; only its provenance differs. The three
+  unminified `amd/build/*.js` files, which Grunt does not generate, have been
+  removed.
+
 ## [v1.0.39] - 2026-09-02
 
 Coding style only. No settings, database schema, language string text or

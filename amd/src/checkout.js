@@ -52,7 +52,7 @@ define([], function() {
      */
     var loadPaddle = function() {
         return new Promise(function(resolve, reject) {
-            if (window.Paddle) {
+            if (window.Paddle && typeof window.Paddle.Initialize === 'function') {
                 resolve(window.Paddle);
                 return;
             }
@@ -80,7 +80,17 @@ define([], function() {
             }
 
             paddleRequire([PADDLE_MODULE], function(paddle) {
-                resolve(window.Paddle || paddle);
+                // Paddle.js's UMD wrapper only assigns window.Paddle when it is
+                // loaded as a plain script. Under AMD it hands the export back
+                // instead, as a namespace object of the shape
+                // {Paddle, PaddleBillingV1}, and leaves the global unset. The
+                // SDK is the Paddle property of that namespace.
+                var sdk = (paddle && paddle.Paddle) || window.Paddle || paddle;
+                if (!sdk || typeof sdk.Initialize !== 'function') {
+                    reject(new Error('Paddle.js loaded but did not expose Initialize.'));
+                    return;
+                }
+                resolve(sdk);
             }, reject);
         });
     };
